@@ -74,4 +74,7 @@ Visit http://localhost:3000.
 ## Notes
 
 - All parts data lives in one Redis key (`parts`), matching the same structure the artifact version used — nothing to migrate manually if you copy data across.
-- If you ever want to wipe the sample data, just delete all the parts from the UI, or delete the `parts` key from the Upstash console.
+- A new database starts empty. Add your own components using **Add part**; the app never writes sample parts automatically.
+- Search across names, locations, suppliers, part numbers, and specs. Filter by category or stock status, then sort by name, quantity, or storage location.
+- On phones, category selection sits above the component cards and the part form opens as a bottom sheet.
+- Failed loads show a retry action. Failed saves keep your form entries available so you can retry.

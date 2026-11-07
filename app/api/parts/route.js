@@ -1,5 +1,7 @@
 import { Redis } from '@upstash/redis';
 
+export const dynamic = 'force-dynamic';
+
 function getClient() {
   return Redis.fromEnv();
 }

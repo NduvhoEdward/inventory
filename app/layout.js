@@ -1,3 +1,5 @@
+import './globals.css';
+
 export const metadata = {
   title: 'Bench Inventory',
   description: 'Electronics parts inventory',

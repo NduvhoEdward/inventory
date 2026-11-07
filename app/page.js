@@ -122,15 +122,6 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
   }
 }
 
-const SEED = [
-  { id: 's1', name: 'Arduino Uno R3', category: 'devboards', quantity: 2, location: 'Shelf A, box 1', pkg: '', supplier: '', partNumber: '', datasheetUrl: '', cost: '', lowStock: 1, specs: [{ key: 'MCU', value: 'ATmega328P' }, { key: 'Logic', value: '5V' }] },
-  { id: 's2', name: 'ESP32 DevKit v1', category: 'devboards', quantity: 3, location: 'Shelf A, box 1', pkg: '', supplier: '', partNumber: '', datasheetUrl: '', cost: '', lowStock: 1, specs: [{ key: 'WiFi/BT', value: 'Yes' }, { key: 'Logic', value: '3.3V' }] },
-  { id: 's3', name: 'LED, 5mm red diffused', category: 'leds', quantity: 40, location: 'Drawer 3', pkg: 'THT', supplier: '', partNumber: '', datasheetUrl: '', cost: '', lowStock: 10, specs: [{ key: 'Vf', value: '2.0V' }, { key: 'If', value: '20mA' }] },
-  { id: 's4', name: 'Resistor 220\u03a9 1/4W', category: 'resistors', quantity: 85, location: 'Drawer 1', pkg: 'THT', supplier: '', partNumber: '', datasheetUrl: '', cost: '', lowStock: 20, specs: [{ key: 'Tolerance', value: '5%' }] },
-  { id: 's5', name: '2N2222 NPN transistor', category: 'transistors', quantity: 6, location: 'Drawer 5', pkg: 'TO-92', supplier: '', partNumber: '2N2222', datasheetUrl: '', cost: '', lowStock: 5, specs: [{ key: 'Ic max', value: '600mA' }] },
-  { id: 's6', name: 'Ceramic capacitor 100nF', category: 'capacitors', quantity: 50, location: 'Drawer 2', pkg: 'THT', supplier: '', partNumber: '', datasheetUrl: '', cost: '', lowStock: 15, specs: [{ key: 'Voltage', value: '50V' }] },
-];
-
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function emptyForm() {
@@ -146,35 +137,47 @@ export default function Inventory() {
   const [form, setForm] = useState(emptyForm());
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [saveError, setSaveError] = useState('');
+  const [loadError, setLoadError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [stockFilter, setStockFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('name');
   const isEditing = form.id !== null;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/api/parts');
-        const data = await res.json();
-        if (data.parts) {
-          setParts(data.parts);
-        } else {
-          setParts(SEED);
-          await fetch('/api/parts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parts: SEED }) });
-        }
-      } catch (e) {
-        setParts(SEED);
-        setSaveError('Could not reach the database — showing sample data only.');
-      }
+  async function loadParts() {
+    setLoaded(false);
+    setLoadError('');
+    try {
+      const res = await fetch('/api/parts', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Load failed');
+      const data = await res.json();
+      if (data.parts !== null && !Array.isArray(data.parts)) throw new Error('Invalid inventory');
+      setParts(data.parts ?? []);
+    } catch {
+      setLoadError('Your inventory could not be loaded. Check the database connection and try again.');
+    } finally {
       setLoaded(true);
-    })();
-  }, []);
+    }
+  }
+
+  useEffect(() => { loadParts(); }, []);
 
   async function persist(next) {
-    setParts(next);
+    if (savingRef.current || loadError) return false;
+    savingRef.current = true;
+    setSaving(true);
+    setSaveError('');
     try {
       const res = await fetch('/api/parts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parts: next }) });
-      if (!res.ok) setSaveError('Could not save — changes may not persist.');
-      else setSaveError('');
-    } catch (e) {
-      setSaveError('Could not save — changes may not persist.');
+      if (!res.ok) throw new Error('Save failed');
+      setParts(next);
+      return true;
+    } catch {
+      setSaveError('Could not save your change. Please try again.');
+      return false;
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
     }
   }
 
@@ -196,14 +199,23 @@ export default function Inventory() {
         return hay.includes(q);
       });
     }
-    return list.slice().sort((a, b) => a.name.localeCompare(b.name));
-  }, [parts, activeCat, query]);
+    if (stockFilter === 'low') list = list.filter((p) => p.quantity <= (p.lowStock ?? 5));
+    if (stockFilter === 'out') list = list.filter((p) => p.quantity === 0);
+    return list.slice().sort((a, b) => {
+      const byName = a.name.localeCompare(b.name);
+      if (sortBy === 'quantity') return a.quantity - b.quantity || byName;
+      if (sortBy === 'location') return (a.location || '').localeCompare(b.location || '') || byName;
+      return byName;
+    });
+  }, [parts, activeCat, query, stockFilter, sortBy]);
 
   function openAdd() {
+    setSaveError('');
     setForm(emptyForm());
     setShowForm(true);
   }
   function openEdit(p) {
+    setSaveError('');
     setForm({
       id: p.id,
       name: p.name,
@@ -234,7 +246,7 @@ export default function Inventory() {
     setForm((f) => ({ ...f, specs: f.specs.filter((_, i) => i !== idx) }));
   }
 
-  function submitForm(e) {
+  async function submitForm(e) {
     e.preventDefault();
     if (!form.name.trim()) return;
     const cleanSpecs = form.specs.filter((s) => s.key.trim() || s.value.trim());
@@ -246,10 +258,10 @@ export default function Inventory() {
           ? { ...p, name: form.name.trim(), category: form.category, quantity: qty, location: form.location, pkg: form.pkg, supplier: form.supplier, partNumber: form.partNumber, datasheetUrl: form.datasheetUrl, cost: form.cost, lowStock: low, specs: cleanSpecs }
           : p
       );
-      persist(next);
+      if (!(await persist(next))) return;
     } else {
       const newPart = { id: uid(), name: form.name.trim(), category: form.category, quantity: qty, location: form.location, pkg: form.pkg, supplier: form.supplier, partNumber: form.partNumber, datasheetUrl: form.datasheetUrl, cost: form.cost, lowStock: low, specs: cleanSpecs };
-      persist([...parts, newPart]);
+      if (!(await persist([...parts, newPart]))) return;
     }
     setShowForm(false);
   }
@@ -259,9 +271,8 @@ export default function Inventory() {
     persist(next);
   }
 
-  function doDelete(id) {
-    persist(parts.filter((p) => p.id !== id));
-    setConfirmDelete(null);
+  async function doDelete(id) {
+    if (await persist(parts.filter((p) => p.id !== id))) setConfirmDelete(null);
   }
 
   const totalParts = parts.length;
@@ -270,7 +281,7 @@ export default function Inventory() {
   if (!loaded) {
     return (
       <div style={{ background: BG, color: TEXT_DIM, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'IBM Plex Sans, ui-sans-serif, system-ui, sans-serif' }}>
-        Loading inventory\u2026
+        Loading inventory…
       </div>
     );
   }
@@ -296,33 +307,35 @@ export default function Inventory() {
         }
       `}</style>
 
-      <div style={{ borderBottom: `1px solid ${BORDER}`, padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+      <header className="app-header" style={{ borderBottom: `1px solid ${BORDER}`, padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div className="brand" style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
           <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: 0.2 }}>Bench Inventory</h1>
-          <span className="mono" style={{ fontSize: 12, color: TEXT_DIM }}>{totalParts} parts</span>
+          <span className="mono" style={{ fontSize: 12, color: TEXT_DIM }}>{totalParts} part types</span>
           {lowStockCount > 0 && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: WARN, background: 'rgba(217,164,65,0.12)', padding: '3px 8px', borderRadius: 4 }}>
               <AlertTriangle size={12} /> {lowStockCount} low
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flex: '1 1 320px', maxWidth: 480 }}>
+        <div className="header-actions" style={{ display: 'flex', gap: 10, alignItems: 'center', flex: '1 1 320px', maxWidth: 480 }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <Search size={15} color={TEXT_DIM} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
             <input
+              aria-label="Search components"
+              type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, location, specs\u2026"
+              placeholder="Search name, location, specs…"
               style={{ width: '100%', boxSizing: 'border-box', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '9px 10px 9px 32px', color: TEXT, fontSize: 13, outline: 'none' }}
             />
           </div>
-          <button onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 6, background: ACCENT, border: 'none', color: '#1A1200', fontWeight: 600, fontSize: 13, padding: '9px 14px', borderRadius: 6, whiteSpace: 'nowrap' }}>
+          <button disabled={!!loadError || saving} onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 6, background: ACCENT, border: 'none', color: '#1A1200', fontWeight: 600, fontSize: 13, padding: '9px 14px', borderRadius: 6, whiteSpace: 'nowrap' }}>
             <Plus size={15} /> Add part
           </button>
         </div>
-      </div>
+      </header>
 
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className="app-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         <div className="sidebar" style={{ width: 210, borderRight: `1px solid ${BORDER}`, padding: '16px 10px', flexShrink: 0, overflowY: 'auto' }}>
           <SidebarItem label="All parts" count={parts.length} active={activeCat === 'all'} onClick={() => setActiveCat('all')} />
           <div style={{ height: 8 }} />
@@ -331,8 +344,29 @@ export default function Inventory() {
           ))}
         </div>
 
-        <div className="parts-scroll grid-bg" style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+        <main className="parts-scroll grid-bg" style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 20 }}>
+          <div className="inventory-toolbar">
+          <div>
+            <h2 className="section-title">{activeCat === 'all' ? 'Your components' : CATEGORIES.find((c) => c.id === activeCat)?.label}</h2>
+            <p className="results-summary" role="status">{loadError ? 'Connection unavailable' : `${filtered.length} of ${totalParts} part types · ${parts.reduce((sum, p) => sum + p.quantity, 0)} items on hand`}</p>
+          </div>
+          <div className="filter-controls">
+            <label className="sr-only" htmlFor="stock-filter">Stock status</label>
+            <select id="stock-filter" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} style={inputStyle}>
+              <option value="all">All stock</option>
+              <option value="low">Low stock ({lowStockCount})</option>
+              <option value="out">Out of stock ({parts.filter((p) => p.quantity === 0).length})</option>
+            </select>
+            <label className="sr-only" htmlFor="sort-by">Sort components</label>
+            <select id="sort-by" value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={inputStyle}>
+              <option value="name">Name A–Z</option>
+              <option value="quantity">Lowest quantity</option>
+              <option value="location">Storage location</option>
+            </select>
+          </div>
+          </div>
           <select
+            aria-label="Component category"
             className="mobile-cat-select"
             value={activeCat}
             onChange={(e) => setActiveCat(e.target.value)}
@@ -343,19 +377,23 @@ export default function Inventory() {
               <option key={c.id} value={c.id}>{c.label} ({counts[c.id] || 0})</option>
             ))}
           </select>
-          {saveError && (
-            <div style={{ marginBottom: 14, fontSize: 12, color: DANGER, background: 'rgba(192,87,70,0.1)', border: `1px solid ${DANGER}`, borderRadius: 6, padding: '8px 10px' }}>{saveError}</div>
+          {(saveError || loadError) && (
+            <div role="alert" style={{ marginBottom: 14, fontSize: 12, color: TEXT, background: 'rgba(192,87,70,0.1)', border: `1px solid ${DANGER}`, borderRadius: 6, padding: '8px 10px' }}>{loadError || saveError} {loadError && <button onClick={loadParts} className="retry-button">Try again</button>}</div>
           )}
-          {filtered.length === 0 ? (
+          {loadError ? null : filtered.length === 0 ? (
             <div style={{ color: TEXT_DIM, fontSize: 14, padding: '40px 0', textAlign: 'center' }}>
-              {parts.length === 0 ? 'No parts yet \u2014 add your first one.' : 'Nothing matches that search.'}
+              <Package size={32} style={{ display: 'block', margin: '0 auto 16px' }} />
+              <h3 style={{ color: TEXT }}>{parts.length === 0 ? 'A place for every component' : 'No matching components'}</h3>
+              <p>{parts.length === 0 ? 'Add your first part to start tracking what is on your bench.' : 'Try another search, category, or stock filter.'}</p>
+              {parts.length === 0 ? <button className="retry-button" onClick={openAdd}>Add your first part</button> : <button className="retry-button" onClick={() => { setQuery(''); setActiveCat('all'); setStockFilter('all'); }}>Clear filters</button>}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+            <div className="parts-grid" aria-busy={saving} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
               {filtered.map((p) => (
                 <PartCard
                   key={p.id}
                   part={p}
+                  saving={saving}
                   onEdit={() => openEdit(p)}
                   onDelete={() => setConfirmDelete(p.id)}
                   onAdjust={(d) => adjustQty(p.id, d)}
@@ -366,15 +404,18 @@ export default function Inventory() {
               ))}
             </div>
           )}
-        </div>
+        </main>
       </div>
 
+      <div className="save-status" role="status">{saving ? 'Saving changes…' : ''}</div>
       {showForm && (
         <FormModal
+          saving={saving}
+          saveError={saveError}
           form={form}
           setForm={setForm}
           isEditing={isEditing}
-          onClose={() => setShowForm(false)}
+          onClose={() => { if (!savingRef.current) setShowForm(false); }}
           onSubmit={submitForm}
           updateSpec={updateSpec}
           addSpecRow={addSpecRow}
@@ -389,6 +430,7 @@ function SidebarItem({ label, count, active, onClick, glyph }) {
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       style={{
         width: '100%',
         display: 'flex',
@@ -411,11 +453,11 @@ function SidebarItem({ label, count, active, onClick, glyph }) {
   );
 }
 
-function PartCard({ part, onEdit, onDelete, onAdjust, confirming, onConfirmDelete, onCancelDelete }) {
+function PartCard({ saving, part, onEdit, onDelete, onAdjust, confirming, onConfirmDelete, onCancelDelete }) {
   const low = part.quantity <= (part.lowStock ?? 5);
   const zero = part.quantity === 0;
   return (
-    <div style={{ background: SURFACE, border: `1px solid ${zero ? DANGER : low ? WARN : BORDER}`, borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <article className="part-card" style={{ background: SURFACE, border: `1px solid ${zero ? DANGER : low ? WARN : BORDER}`, borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <div style={{ width: 30, height: 30, borderRadius: 6, background: SURFACE_2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <CategoryGlyph category={part.category} size={16} color={ACCENT} />
@@ -425,8 +467,8 @@ function PartCard({ part, onEdit, onDelete, onAdjust, confirming, onConfirmDelet
           {part.partNumber && <div className="mono" style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}>{part.partNumber}</div>}
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={onEdit} title="Edit" style={{ background: 'transparent', border: 'none', color: TEXT_DIM, padding: 4 }}><Pencil size={14} /></button>
-          <button onClick={onDelete} title="Delete" style={{ background: 'transparent', border: 'none', color: TEXT_DIM, padding: 4 }}><Trash2 size={14} /></button>
+          <button disabled={saving} onClick={onEdit} aria-label={`Edit ${part.name}`} title="Edit" style={{ background: 'transparent', border: 'none', color: TEXT_DIM, padding: 4 }}><Pencil size={14} /></button>
+          <button disabled={saving} onClick={onDelete} aria-label={`Delete ${part.name}`} title="Delete" style={{ background: 'transparent', border: 'none', color: TEXT_DIM, padding: 4 }}><Trash2 size={14} /></button>
         </div>
       </div>
 
@@ -434,7 +476,7 @@ function PartCard({ part, onEdit, onDelete, onAdjust, confirming, onConfirmDelet
         <div style={{ background: 'rgba(192,87,70,0.12)', border: `1px solid ${DANGER}`, borderRadius: 6, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
           <span>Delete this part?</span>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={onConfirmDelete} style={{ background: DANGER, border: 'none', color: '#fff', borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>Delete</button>
+            <button disabled={saving} onClick={onConfirmDelete} style={{ background: DANGER, border: 'none', color: '#fff', borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>Delete</button>
             <button onClick={onCancelDelete} style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>Cancel</button>
           </div>
         </div>
@@ -459,9 +501,9 @@ function PartCard({ part, onEdit, onDelete, onAdjust, confirming, onConfirmDelet
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button onClick={() => onAdjust(-1)} style={{ width: 24, height: 24, background: SURFACE_2, border: `1px solid ${BORDER}`, borderRadius: 5, color: TEXT, fontSize: 14, lineHeight: 1 }}>\u2212</button>
+          <button disabled={saving || zero} aria-label={`Use one ${part.name}`} onClick={() => onAdjust(-1)} style={{ width: 24, height: 24, background: SURFACE_2, border: `1px solid ${BORDER}`, borderRadius: 5, color: TEXT, fontSize: 14, lineHeight: 1 }}>−</button>
           <span className="mono" style={{ fontSize: 15, fontWeight: 500, minWidth: 28, textAlign: 'center', color: zero ? DANGER : low ? WARN : TEXT }}>{part.quantity}</span>
-          <button onClick={() => onAdjust(1)} style={{ width: 24, height: 24, background: SURFACE_2, border: `1px solid ${BORDER}`, borderRadius: 5, color: TEXT, fontSize: 14, lineHeight: 1 }}>+</button>
+          <button disabled={saving} aria-label={`Add one ${part.name}`} onClick={() => onAdjust(1)} style={{ width: 24, height: 24, background: SURFACE_2, border: `1px solid ${BORDER}`, borderRadius: 5, color: TEXT, fontSize: 14, lineHeight: 1 }}>+</button>
         </div>
         {part.datasheetUrl && (
           <a href={part.datasheetUrl} target="_blank" rel="noreferrer" style={{ color: ACCENT, fontSize: 11, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
@@ -472,22 +514,48 @@ function PartCard({ part, onEdit, onDelete, onAdjust, confirming, onConfirmDelet
       {(zero || low) && (
         <div style={{ fontSize: 11, color: zero ? DANGER : WARN }}>{zero ? 'Out of stock' : 'Low stock'}</div>
       )}
-    </div>
+    </article>
   );
 }
 
-function FormModal({ form, setForm, isEditing, onClose, onSubmit, updateSpec, addSpecRow, removeSpecRow }) {
+function FormModal({ saving, saveError, form, setForm, isEditing, onClose, onSubmit, updateSpec, addSpecRow, removeSpecRow }) {
   const nameRef = useRef(null);
-  useEffect(() => { nameRef.current && nameRef.current.focus(); }, []);
+  const modalRef = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const previous = document.activeElement;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    nameRef.current?.focus();
+    function onKey(event) {
+      if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
+      if (event.key !== 'Tab') return;
+      const controls = [...modalRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')];
+      if (!controls.length) { event.preventDefault(); return; }
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener('keydown', onKey);
+      previous?.focus();
+    };
+  }, []);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={onClose}>
-      <form onSubmit={onSubmit} onClick={(e) => e.stopPropagation()} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, width: 480, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', padding: 20, color: TEXT, fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={onClose}>
+      <form ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="part-form-title" className="part-form" onSubmit={onSubmit} onClick={(e) => e.stopPropagation()} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, width: 480, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', padding: 20, color: TEXT, fontFamily: "'IBM Plex Sans', sans-serif" }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{isEditing ? 'Edit part' : 'Add part'}</h2>
-          <button type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', color: TEXT_DIM }}><X size={18} /></button>
+          <h2 id="part-form-title" style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{isEditing ? 'Edit part' : 'Add part'}</h2>
+          <button disabled={saving} aria-label="Close part form" type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', color: TEXT_DIM }}><X size={18} /></button>
         </div>
 
+        {saveError && <p role="alert" style={{ color: WARN }}>{saveError}</p>}
+        <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
         <Field label="Name">
           <input ref={nameRef} required value={form.name} onChange={set('name')} placeholder="e.g. LED, 5mm red diffused" style={inputStyle} />
         </Field>
@@ -499,7 +567,7 @@ function FormModal({ form, setForm, isEditing, onClose, onSubmit, updateSpec, ad
             </select>
           </Field>
           <Field label="Package" style={{ flex: 1 }}>
-            <input value={form.pkg} onChange={set('pkg')} placeholder="THT, SMD, DIP-8\u2026" style={inputStyle} />
+            <input value={form.pkg} onChange={set('pkg')} placeholder="THT, SMD, DIP-8…" style={inputStyle} />
           </Field>
         </div>
 
@@ -527,7 +595,7 @@ function FormModal({ form, setForm, isEditing, onClose, onSubmit, updateSpec, ad
 
         <div style={{ display: 'flex', gap: 12 }}>
           <Field label="Datasheet URL" style={{ flex: 1 }}>
-            <input value={form.datasheetUrl} onChange={set('datasheetUrl')} placeholder="https://\u2026" style={inputStyle} />
+            <input type="url" value={form.datasheetUrl} onChange={set('datasheetUrl')} placeholder="https://…" style={inputStyle} />
           </Field>
           <Field label="Cost each" style={{ flex: 1 }}>
             <input value={form.cost} onChange={set('cost')} placeholder="e.g. R2.50" style={inputStyle} />
@@ -538,18 +606,19 @@ function FormModal({ form, setForm, isEditing, onClose, onSubmit, updateSpec, ad
           <label style={labelStyle}>Specs</label>
           {form.specs.map((s, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-              <input value={s.key} onChange={(e) => updateSpec(i, 'key', e.target.value)} placeholder="Forward voltage" style={{ ...inputStyle, flex: 1 }} />
-              <input value={s.value} onChange={(e) => updateSpec(i, 'value', e.target.value)} placeholder="2.1V" style={{ ...inputStyle, flex: 1 }} />
-              <button type="button" onClick={() => removeSpecRow(i)} style={{ background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, color: TEXT_DIM, width: 32 }}>\u00d7</button>
+              <input aria-label={`Specification ${i + 1} name`} value={s.key} onChange={(e) => updateSpec(i, 'key', e.target.value)} placeholder="Forward voltage" style={{ ...inputStyle, flex: 1 }} />
+              <input aria-label={`Specification ${i + 1} value`} value={s.value} onChange={(e) => updateSpec(i, 'value', e.target.value)} placeholder="2.1V" style={{ ...inputStyle, flex: 1 }} />
+              <button type="button" aria-label={`Remove specification ${i + 1}`} onClick={() => removeSpecRow(i)} style={{ background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, color: TEXT_DIM, width: 32 }}>×</button>
             </div>
           ))}
           <button type="button" onClick={addSpecRow} style={{ background: 'transparent', border: `1px dashed ${BORDER}`, color: TEXT_DIM, borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%' }}>+ Add spec</button>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
-          <button type="button" onClick={onClose} style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 6, padding: '9px 16px', fontSize: 13 }}>Cancel</button>
-          <button type="submit" style={{ background: ACCENT, border: 'none', color: '#1A1200', fontWeight: 600, borderRadius: 6, padding: '9px 16px', fontSize: 13 }}>{isEditing ? 'Save changes' : 'Add part'}</button>
+          <button disabled={saving} type="button" onClick={onClose} style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 6, padding: '9px 16px', fontSize: 13 }}>Cancel</button>
+          <button type="submit" style={{ background: ACCENT, border: 'none', color: '#1A1200', fontWeight: 600, borderRadius: 6, padding: '9px 16px', fontSize: 13 }}>{saving ? 'Saving…' : isEditing ? 'Save changes' : 'Add part'}</button>
         </div>
+        </fieldset>
       </form>
     </div>
   );
@@ -561,8 +630,9 @@ const labelStyle = { display: 'block', fontSize: 12, color: TEXT_DIM, marginBott
 function Field({ label, children, style }) {
   return (
     <div style={{ marginBottom: 12, ...style }}>
-      <label style={labelStyle}>{label}</label>
-      {children}
+      <label style={{ ...labelStyle, marginBottom: 0 }}>{label}
+        <span style={{ display: 'block', marginTop: 6 }}>{children}</span>
+      </label>
     </div>
   );
 }
