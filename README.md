@@ -78,3 +78,18 @@ Visit http://localhost:3000.
 - Search across names, locations, suppliers, part numbers, and specs. Filter by category or stock status, then sort by name, quantity, or storage location.
 - On phones, category selection sits above the component cards and the part form opens as a bottom sheet.
 - Failed loads show a retry action. Failed saves keep your form entries available so you can retry.
+
+
+## Current production storage
+
+The Vercel project `inventory` uses the free Upstash database `inventory-recovery`
+in Cape Town. The previous database was archived due to inactivity; its
+`inventory-before-deletion backup-2026-09-26` backup was selected for recovery.
+The new integration supplies `INVENTORY_KV_REST_API_URL` and
+`INVENTORY_KV_REST_API_TOKEN`. These take priority over the original environment
+variables, which remain supported for other installations. Credentials stay in
+Vercel environment settings and must never be committed.
+
+Upstash free databases can be archived after inactivity. If the site reports a
+connection failure, check database status in Vercel Storage before changing or
+replacing inventory data.

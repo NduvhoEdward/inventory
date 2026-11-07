@@ -3,6 +3,14 @@ import { Redis } from '@upstash/redis';
 export const dynamic = 'force-dynamic';
 
 function getClient() {
+  // The recovery database uses its own Vercel integration prefix.
+  // Keep the original environment setup available for other installations.
+  const url = process.env.INVENTORY_KV_REST_API_URL;
+  const token = process.env.INVENTORY_KV_REST_API_TOKEN;
+  if (url || token) {
+    if (!url || !token) throw new Error('Incomplete inventory database configuration');
+    return new Redis({ url, token });
+  }
   return Redis.fromEnv();
 }
 
