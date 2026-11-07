@@ -51,3 +51,8 @@ input, select { min-height: 44px; }
   .part-card { padding: 12px !important; }
   .part-form fieldset > div[style*="display: flex"] { flex-direction: column; gap: 0 !important; }
 }
+
+.backup-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 20px; }
+.backup-tools span { color: #a3ada7; font-size: 12px; }
+.secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #22262b; border: 1px solid #2c3238; color: #e9eae6; border-radius: 6px; padding: 8px 12px; font: inherit; font-size: 13px; }
+@media (max-width: 720px) { .backup-tools span { flex-basis: 100%; line-height: 1.5; } }

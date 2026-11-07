@@ -1,95 +1,71 @@
 # Bench Inventory
 
-Electronics parts inventory. Next.js frontend, data stored in Upstash Redis so your phone and desktop see the same list.
+Personal electronics components inventory, built with Next.js and Neon PostgreSQL.
+The website stays on GitHub + Vercel, with a shared inventory on phone and desktop.
 
-## 1. Create a free database (2 minutes)
+## Features
 
-1. Go to https://upstash.com and sign up (free tier is plenty for this).
-2. Create a new **Redis** database (any region close to you is fine).
-3. On the database's page, find the **REST API** section. Copy the two values:
-   - `UPSTASH_REDIS_REST_URL`
-   - `UPSTASH_REDIS_REST_TOKEN`
+- Add/edit components, quantities, storage locations, suppliers, datasheets, and custom specs.
+- Search across component details; filter categories and stock status; sort by name, quantity, or location.
+- Phone-friendly controls and part forms; keyboard focus management.
+- Download a complete JSON backup or a spreadsheet-friendly CSV export. Exports include all components even when the screen is filtered.
+- Failed database requests never replace your inventory with sample data. Failed saves preserve form entries for retry.
 
-Keep these handy for step 3.
+## Database setup
 
-## 2. Get the code onto Vercel
+Use the **Neon Free** integration in the Vercel project's Storage page. Connect it
+to Production and Preview without a custom prefix, so it supplies `DATABASE_URL`.
+Keep the plan Free; no payment method or paid plan is required for this setup.
 
-You have two options — pick whichever is easier for you.
+The application creates its `bench_inventory` table on the first database request.
+Component records retain their original fields inside PostgreSQL JSONB.
 
-### Option A — Vercel CLI, no GitHub needed (fastest)
+### Migration from Upstash
 
-In this project folder, on your own computer:
+If `DATABASE_URL` is present and Neon has no inventory row, the app reads the old
+Redis `parts` key and inserts it into Neon. The existing Vercel source variables are
+`INVENTORY_KV_REST_API_URL` and `INVENTORY_KV_REST_API_TOKEN`. Original
+`UPSTASH_REDIS_REST_*` or `KV_REST_API_*` names also remain supported.
 
-```bash
-npm install -g vercel
-npm install
-vercel
-```
+Migration never deletes or writes to the legacy database. A failed source read
+stops migration rather than creating an empty inventory. Concurrent initialization
+cannot overwrite an already initialized Neon inventory. Once the Neon row exists,
+all reads and writes use Neon, even if the old Upstash database becomes unavailable.
+If Neon fails, the app reports an error rather than silently switching datasets.
 
-`vercel` will ask you to log in (opens a browser) and a few setup questions — accept the defaults. It deploys a preview immediately.
+Without `DATABASE_URL`, the existing Redis backend continues working, allowing
+safe deployment before connecting the Neon integration.
 
-### Option B — GitHub + Vercel dashboard (better if you'll keep editing it)
+## Downloadable backups
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-```
+**Download backup** saves a JSON file with format `bench-inventory`, version `1`,
+an export timestamp, and every component with its full specifications. Keep a copy
+on your computer or another storage location you control. **Export CSV** makes a
+spreadsheet-friendly copy with Unicode support and formula-safe text cells.
+JSON is the lossless backup format; CSV is intended for viewing in spreadsheets.
 
-Create a new empty repo on GitHub, then:
-
-```bash
-git remote add origin <your-repo-url>
-git branch -M main
-git push -u origin main
-```
-
-Then on https://vercel.com: **Add New → Project**, import that GitHub repo, and click **Deploy**.
-
-## 3. Add the environment variables
-
-In your Vercel project: **Settings → Environment Variables**, add:
-
-| Name | Value |
-|---|---|
-| `UPSTASH_REDIS_REST_URL` | (from step 1) |
-| `UPSTASH_REDIS_REST_TOKEN` | (from step 1) |
-
-Apply to all environments (Production, Preview, Development), then go to **Deployments** and **redeploy** (env vars only take effect on a fresh deploy).
-
-## 4. Open it
-
-Vercel gives you a URL like `bench-inventory.vercel.app`. Open that on your phone and add it to your home screen (Share → Add to Home Screen on iOS, or the browser menu → Add to Home Screen on Android) so it behaves like an app icon.
+Free cloud plans have usage limits and may change their policies. Neon suspends
+idle compute and automatically resumes on demand; archived branches also restore
+automatically. Download independent backups after substantial inventory changes.
 
 ## Local development
 
-```bash
+```powershell
 npm install
-cp .env.example .env.local   # then fill in the two values
+Copy-Item .env.example .env.local
+# Fill DATABASE_URL in .env.local with your own Neon connection string.
 npm run dev
 ```
 
-Visit http://localhost:3000.
+Open http://localhost:3000. Never commit `.env.local`, database connection strings,
+or tokens. The production URL remains https://inventory-eta-seven.vercel.app/.
 
-## Notes
+## Validation
 
-- All parts data lives in one Redis key (`parts`), matching the same structure the artifact version used — nothing to migrate manually if you copy data across.
-- A new database starts empty. Add your own components using **Add part**; the app never writes sample parts automatically.
-- Search across names, locations, suppliers, part numbers, and specs. Filter by category or stock status, then sort by name, quantity, or storage location.
-- On phones, category selection sits above the component cards and the part form opens as a bottom sheet.
-- Failed loads show a retry action. Failed saves keep your form entries available so you can retry.
+```powershell
+npm test
+npm run build
+```
 
-
-## Current production storage
-
-The Vercel project `inventory` uses the free Upstash database `inventory-recovery`
-in Cape Town. The previous database was archived due to inactivity; its
-`inventory-before-deletion backup-2026-09-26` backup was selected for recovery.
-The new integration supplies `INVENTORY_KV_REST_API_URL` and
-`INVENTORY_KV_REST_API_TOKEN`. These take priority over the original environment
-variables, which remain supported for other installations. Credentials stay in
-Vercel environment settings and must never be committed.
-
-Upstash free databases can be archived after inactivity. If the site reports a
-connection failure, check database status in Vercel Storage before changing or
-replacing inventory data.
+Tests cover lossless backups, CSV escaping, invalid records, migration failures,
+concurrent initialization, and independence from the old database after migration.

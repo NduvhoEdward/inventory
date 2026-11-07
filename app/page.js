@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Plus, X, Pencil, Trash2, MapPin, Package, ExternalLink, AlertTriangle } from 'lucide-react';
+import { Search, Plus, X, Pencil, Trash2, MapPin, Package, ExternalLink, AlertTriangle, Download } from 'lucide-react';
 
 const ACCENT = '#C8823C';
 const BG = '#14171A';
@@ -142,6 +142,7 @@ export default function Inventory() {
   const savingRef = useRef(false);
   const [stockFilter, setStockFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
+  const [exporting, setExporting] = useState(false);
   const isEditing = form.id !== null;
 
   async function loadParts() {
@@ -178,6 +179,27 @@ export default function Inventory() {
     } finally {
       savingRef.current = false;
       setSaving(false);
+    }
+  }
+
+  async function downloadBackup(format) {
+    setExporting(true);
+    setSaveError('');
+    try {
+      const response = await fetch(`/api/backup?format=${format}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Backup failed');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bench-inventory-${new Date().toISOString().slice(0, 10)}.${format}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setSaveError('Could not download your backup. Please try again.');
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -377,6 +399,11 @@ export default function Inventory() {
               <option key={c.id} value={c.id}>{c.label} ({counts[c.id] || 0})</option>
             ))}
           </select>
+          <div className="backup-tools">
+            <button className="secondary-button" disabled={!!loadError || saving || exporting} onClick={() => downloadBackup('json')}><Download size={15} /> Download backup</button>
+            <button className="secondary-button" disabled={!!loadError || saving || exporting} onClick={() => downloadBackup('csv')}><Download size={15} /> Export CSV</button>
+            <span>Exports include all components, regardless of filters.</span>
+          </div>
           {(saveError || loadError) && (
             <div role="alert" style={{ marginBottom: 14, fontSize: 12, color: TEXT, background: 'rgba(192,87,70,0.1)', border: `1px solid ${DANGER}`, borderRadius: 6, padding: '8px 10px' }}>{loadError || saveError} {loadError && <button onClick={loadParts} className="retry-button">Try again</button>}</div>
           )}
@@ -407,7 +434,7 @@ export default function Inventory() {
         </main>
       </div>
 
-      <div className="save-status" role="status">{saving ? 'Saving changes…' : ''}</div>
+      <div className="save-status" role="status">{saving ? 'Saving changes…' : exporting ? 'Preparing download…' : ''}</div>
       {showForm && (
         <FormModal
           saving={saving}

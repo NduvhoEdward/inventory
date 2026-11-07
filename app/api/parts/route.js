@@ -1,39 +1,30 @@
-import { Redis } from '@upstash/redis';
+import { getParts, saveParts } from '../../../lib/storage';
+import { validateParts } from '../../../lib/inventory.mjs';
 
 export const dynamic = 'force-dynamic';
-
-function getClient() {
-  // The recovery database uses its own Vercel integration prefix.
-  // Keep the original environment setup available for other installations.
-  const url = process.env.INVENTORY_KV_REST_API_URL;
-  const token = process.env.INVENTORY_KV_REST_API_TOKEN;
-  if (url || token) {
-    if (!url || !token) throw new Error('Incomplete inventory database configuration');
-    return new Redis({ url, token });
-  }
-  return Redis.fromEnv();
-}
+const headers = { 'Cache-Control': 'no-store' };
 
 export async function GET() {
   try {
-    const redis = getClient();
-    const parts = await redis.get('parts');
-    return Response.json({ parts: parts || null });
-  } catch (err) {
-    return Response.json({ error: 'Could not reach the database. Check your Upstash environment variables.' }, { status: 500 });
+    const parts = validateParts(await getParts());
+    return Response.json({ parts }, { headers });
+  } catch {
+    return Response.json({ error: 'Could not load your inventory. Please try again.' }, { status: 503, headers });
   }
 }
 
 export async function POST(request) {
+  let parts;
   try {
-    const redis = getClient();
     const body = await request.json();
-    if (!Array.isArray(body.parts)) {
-      return Response.json({ error: 'Invalid payload' }, { status: 400 });
-    }
-    await redis.set('parts', body.parts);
-    return Response.json({ ok: true });
-  } catch (err) {
-    return Response.json({ error: 'Could not reach the database. Check your Upstash environment variables.' }, { status: 500 });
+    parts = validateParts(body.parts);
+  } catch {
+    return Response.json({ error: 'Invalid inventory data.' }, { status: 400, headers });
+  }
+  try {
+    await saveParts(parts);
+    return Response.json({ ok: true }, { headers });
+  } catch {
+    return Response.json({ error: 'Could not save your inventory. Please try again.' }, { status: 503, headers });
   }
 }
