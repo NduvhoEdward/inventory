@@ -56,6 +56,3 @@ input, select { min-height: 44px; }
 .backup-tools span { color: #a3ada7; font-size: 12px; }
 .secondary-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #22262b; border: 1px solid #2c3238; color: #e9eae6; border-radius: 6px; padding: 8px 12px; font: inherit; font-size: 13px; }
 @media (max-width: 720px) { .backup-tools span { flex-basis: 100%; line-height: 1.5; } }
-
-.backup-tools a { min-height: 44px; text-decoration: none; }
-.backup-tools a[aria-disabled="true"] { cursor: not-allowed; opacity: .45; }
