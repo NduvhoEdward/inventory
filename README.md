@@ -1,71 +1,27 @@
-# Bench Inventory
+# My Inventory
 
-Personal electronics components inventory, built with Next.js and Neon PostgreSQL.
-The website stays on GitHub + Vercel, with a shared inventory on phone and desktop.
+A mobile-friendly personal inventory for electronics, tools, equipment and other belongings. Hosted on Vercel with Neon Postgres Free.
 
-## Features
+## Collections
 
-- Add/edit components, quantities, storage locations, suppliers, datasheets, and custom specs.
-- Search across component details; filter categories and stock status; sort by name, quantity, or location.
-- Phone-friendly controls and part forms; keyboard focus management.
-- Download a complete JSON backup or a spreadsheet-friendly CSV export. Exports include all components even when the screen is filtered.
-- Failed database requests never replace your inventory with sample data. Failed saves preserve form entries for retry.
+The overview shows top-level collections, recent items and low stock or overdue maintenance. Start with Electronics bench and Garage; add, rename, nest or move any collection using Add collection, Subcollection, or Edit collection > Inside. Collection views include their descendants. An item belongs to one collection; use its edit form to move it. Storage location is a separate field (for example Garage / Cabinet 2 / Shelf 1).
 
-## Database setup
+Delete only empty collections without children. Move their contents elsewhere first. Each device can choose its starting collection in the footer. Search from Overview or All items to search everything; inside a collection search is scoped to that collection and its descendants.
 
-Use the **Neon Free** integration in the Vercel project's Storage page. Connect it
-to Production and Preview without a custom prefix, so it supplies `DATABASE_URL`.
-Keep the plan Free; no payment method or paid plan is required for this setup.
+Item forms retain electronics fields and add brand, model, serial number, condition, purchase date, warranty, maintenance date and notes. Low stock and due maintenance appear under Needs attention. Photos and lending tracking are not included.
 
-The application creates its `bench_inventory` table on the first database request.
-Component records retain their original fields inside PostgreSQL JSONB.
+## Database and migration
 
-### Migration from Upstash
+Set DATABASE_URL through the Neon integration in Vercel (Free). No credentials belong in this repository. The optional INVENTORY_KV_REST_API_URL / INVENTORY_KV_REST_API_TOKEN variables are only for migrating the former Redis inventory.
 
-If `DATABASE_URL` is present and Neon has no inventory row, the app reads the old
-Redis `parts` key and inserts it into Neon. The existing Vercel source variables are
-`INVENTORY_KV_REST_API_URL` and `INVENTORY_KV_REST_API_TOKEN`. Original
-`UPSTASH_REDIS_REST_*` or `KV_REST_API_*` names also remain supported.
+The existing bench_inventory singleton row is retained. On first access, additive collections and revision columns are created, existing items are assigned to Electronics bench, and starter collections are inserted atomically only if the collections column is still null. Future starts preserve custom collections and empty inventories. No fake items are created. The original Redis database is not altered. Older clients cannot write through /api/parts after the collections schema exists: refresh those clients.
 
-Migration never deletes or writes to the legacy database. A failed source read
-stops migration rather than creating an empty inventory. Concurrent initialization
-cannot overwrite an already initialized Neon inventory. Once the Neon row exists,
-all reads and writes use Neon, even if the old Upstash database becomes unavailable.
-If Neon fails, the app reports an error rather than silently switching datasets.
+/api/inventory validates all collection relationships and item destinations. Writes require the last loaded revision; concurrent edits receive HTTP 409 rather than overwriting newer data. Reload and reapply your edit after a conflict. The inventory is stored as JSONB in one row; suitable for a personal inventory, with a relational item model a future option for much larger deployments.
 
-Without `DATABASE_URL`, the existing Redis backend continues working, allowing
-safe deployment before connecting the Neon integration.
+## Backups
 
-## Downloadable backups
-
-**Download backup** saves a JSON file with format `bench-inventory`, version `1`,
-an export timestamp, and every component with its full specifications. Keep a copy
-on your computer or another storage location you control. **Export CSV** makes a
-spreadsheet-friendly copy with Unicode support and formula-safe text cells.
-JSON is the lossless backup format; CSV is intended for viewing in spreadsheets.
-
-Free cloud plans have usage limits and may change their policies. Neon suspends
-idle compute and automatically resumes on demand; archived branches also restore
-automatically. Download independent backups after substantial inventory changes.
+Download backup exports all collections and all item fields as version 2 JSON, including empty collections. Export CSV includes readable collection paths and tool details, with spreadsheet formula escaping. Existing version 1 JSON backups remain readable by readWorkspaceBackup; there is no restore/import UI yet. CSV is an item export, not a complete restore format for empty collections.
 
 ## Local development
 
-```powershell
-npm install
-Copy-Item .env.example .env.local
-# Fill DATABASE_URL in .env.local with your own Neon connection string.
-npm run dev
-```
-
-Open http://localhost:3000. Never commit `.env.local`, database connection strings,
-or tokens. The production URL remains https://inventory-eta-seven.vercel.app/.
-
-## Validation
-
-```powershell
-npm test
-npm run build
-```
-
-Tests cover lossless backups, CSV escaping, invalid records, migration failures,
-concurrent initialization, and independence from the old database after migration.
+Copy .env.example to .env.local and set your Neon development database URL. Then run npm install and npm run dev. Run npm test and npm run build before publishing. Push main to trigger the existing Vercel deployment.

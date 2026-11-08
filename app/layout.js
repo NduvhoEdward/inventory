@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Bench Inventory',
-  description: 'Electronics parts inventory',
+  title: 'My Inventory',
+  description: 'Your tools, components and equipment, organised in collections',
 };
 
 export default function RootLayout({ children }) {

@@ -1,36 +1,69 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Plus, X, Pencil, Trash2, MapPin, Package, ExternalLink, AlertTriangle, Download } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import {
+  Folder,
+  Home,
+  Wrench,
+  Cpu,
+  ArrowRight,
+  Settings,
+  Search,
+  Plus,
+  X,
+  Pencil,
+  Trash2,
+  MapPin,
+  Package,
+  ExternalLink,
+  AlertTriangle,
+  Download,
+} from "lucide-react";
 
-const ACCENT = '#C8823C';
-const BG = '#14171A';
-const SURFACE = '#1C2024';
-const SURFACE_2 = '#22262B';
-const BORDER = '#2C3238';
-const TEXT = '#E9EAE6';
-const TEXT_DIM = '#8B948E';
-const WARN = '#D9A441';
-const DANGER = '#C05746';
+import {
+  collectionPath,
+  descendantIds,
+  validateInventory,
+} from "../lib/workspace.mjs";
+
+const ACCENT = "#C8823C";
+const BG = "#14171A";
+const SURFACE = "#1C2024";
+const SURFACE_2 = "#22262B";
+const BORDER = "#2C3238";
+const TEXT = "#E9EAE6";
+const TEXT_DIM = "#8B948E";
+const WARN = "#D9A441";
+const DANGER = "#C05746";
 
 const CATEGORIES = [
-  { id: 'leds', label: 'LEDs' },
-  { id: 'resistors', label: 'Resistors' },
-  { id: 'capacitors', label: 'Capacitors' },
-  { id: 'transistors', label: 'Transistors & MOSFETs' },
-  { id: 'ics', label: 'ICs' },
-  { id: 'devboards', label: 'Dev boards' },
-  { id: 'connectors', label: 'Connectors' },
-  { id: 'sensors', label: 'Sensors & modules' },
-  { id: 'inductors', label: 'Inductors & coils' },
-  { id: 'other', label: 'Other' },
+  { id: "leds", label: "LEDs" },
+  { id: "resistors", label: "Resistors" },
+  { id: "capacitors", label: "Capacitors" },
+  { id: "transistors", label: "Transistors & MOSFETs" },
+  { id: "ics", label: "ICs" },
+  { id: "devboards", label: "Dev boards" },
+  { id: "connectors", label: "Connectors" },
+  { id: "sensors", label: "Sensors & modules" },
+  { id: "inductors", label: "Inductors & coils" },
+  { id: "tools", label: "Tools" },
+  { id: "equipment", label: "Equipment" },
+  { id: "consumables", label: "Consumables" },
+  { id: "spares", label: "Spare parts" },
+  { id: "other", label: "Other" },
 ];
 
 function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
-  const s = { width: size, height: size, display: 'block' };
-  const common = { fill: 'none', stroke: color, strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const s = { width: size, height: size, display: "block" };
+  const common = {
+    fill: "none",
+    stroke: color,
+    strokeWidth: 1.6,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  };
   switch (category) {
-    case 'leds':
+    case "leds":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <path d="M8 3 L8 15 L14 9 Z" />
@@ -39,13 +72,13 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
           <line x1="17" y1="9" x2="20.5" y2="9" />
         </svg>
       );
-    case 'resistors':
+    case "resistors":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <path d="M2 12 H6 L8 7 L11 17 L14 7 L17 17 L19 12 H22" />
         </svg>
       );
-    case 'capacitors':
+    case "capacitors":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <line x1="2" y1="12" x2="10" y2="12" />
@@ -54,7 +87,7 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
           <line x1="14" y1="12" x2="22" y2="12" />
         </svg>
       );
-    case 'transistors':
+    case "transistors":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <circle cx="12" cy="12" r="9" />
@@ -64,7 +97,7 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
           <path d="M13 15.5 L16 18 L15.3 14.8" />
         </svg>
       );
-    case 'ics':
+    case "ics":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <rect x="6" y="6" width="12" height="12" rx="1" />
@@ -78,7 +111,7 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
           <line x1="18" y1="15" x2="22" y2="15" />
         </svg>
       );
-    case 'devboards':
+    case "devboards":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <rect x="3" y="4" width="18" height="16" rx="1" />
@@ -89,7 +122,7 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
           <rect x="6" y="12" width="6" height="6" />
         </svg>
       );
-    case 'connectors':
+    case "connectors":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <rect x="3" y="8" width="10" height="8" rx="1" />
@@ -98,14 +131,14 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
           <line x1="13" y1="14" x2="20" y2="14" />
         </svg>
       );
-    case 'sensors':
+    case "sensors":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <circle cx="12" cy="12" r="9" />
           <path d="M7 12 Q9 7 12 12 T17 12" />
         </svg>
       );
-    case 'inductors':
+    case "inductors":
       return (
         <svg style={s} viewBox="0 0 24 24" {...common}>
           <path d="M2 12 H5 M5 12 a2.5 2.5 0 0 1 5 0 a2.5 2.5 0 0 1 5 0 a2.5 2.5 0 0 1 5 0 M19 12 H22" />
@@ -125,330 +158,934 @@ function CategoryGlyph({ category, size = 20, color = TEXT_DIM }) {
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function emptyForm() {
-  return { id: null, name: '', category: 'other', quantity: '1', location: '', pkg: '', supplier: '', partNumber: '', datasheetUrl: '', cost: '', lowStock: '5', specs: [{ key: '', value: '' }] };
+  return {
+    id: null,
+    name: "",
+    category: "other",
+    quantity: "1",
+    location: "",
+    pkg: "",
+    supplier: "",
+    partNumber: "",
+    datasheetUrl: "",
+    cost: "",
+    lowStock: "5",
+    specs: [{ key: "", value: "" }],
+  };
 }
 
 export default function Inventory() {
-  const [parts, setParts] = useState([]);
-  const [loaded, setLoaded] = useState(false);
-  const [query, setQuery] = useState('');
-  const [activeCat, setActiveCat] = useState('all');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm());
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  const [saveError, setSaveError] = useState('');
-  const [loadError, setLoadError] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [data, setData] = useState({ parts: [], collections: [], revision: 0 });
+  const { parts, collections } = data;
+  const [loaded, setLoaded] = useState(false),
+    [loadError, setLoadError] = useState(""),
+    [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false),
+    [exporting, setExporting] = useState(false);
   const savingRef = useRef(false);
-  const [stockFilter, setStockFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('name');
-  const [exporting, setExporting] = useState(false);
+  const [active, setActive] = useState("home"),
+    [preferred, setPreferred] = useState("home"),
+    [query, setQuery] = useState("");
+  const [stockFilter, setStockFilter] = useState("all"),
+    [sortBy, setSortBy] = useState("name"),
+    [categoryFilter, setCategoryFilter] = useState("all");
+  const [showForm, setShowForm] = useState(false),
+    [form, setForm] = useState(emptyForm()),
+    [confirmDelete, setConfirmDelete] = useState(null);
+  const [collectionForm, setCollectionForm] = useState(null),
+    [collectionError, setCollectionError] = useState("");
+  const [deleteCollection, setDeleteCollection] = useState(false);
   const isEditing = form.id !== null;
-
   async function loadParts() {
-    setLoaded(false);
-    setLoadError('');
+    setLoadError("");
     try {
-      const res = await fetch('/api/parts', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Load failed');
-      const data = await res.json();
-      if (data.parts !== null && !Array.isArray(data.parts)) throw new Error('Invalid inventory');
-      setParts(data.parts ?? []);
+      const r = await fetch("/api/inventory", { cache: "no-store" });
+      if (!r.ok) throw Error();
+      const d = await r.json();
+      validateInventory(d);
+      setData(d);
+      return d;
     } catch {
-      setLoadError('Your inventory could not be loaded. Check the database connection and try again.');
+      setLoadError("Your inventory could not be loaded. Please try again.");
     } finally {
       setLoaded(true);
     }
   }
-
-  useEffect(() => { loadParts(); }, []);
-
+  useEffect(() => {
+    loadParts().then((d) => {
+      try {
+        const start = localStorage.getItem("inventory-start") || "home";
+        setPreferred(start);
+        if (d?.collections.some((c) => c.id === start)) setActive(start);
+      } catch {}
+    });
+  }, []);
   async function persist(next) {
     if (savingRef.current || loadError) return false;
     savingRef.current = true;
     setSaving(true);
-    setSaveError('');
+    setSaveError("");
     try {
-      const res = await fetch('/api/parts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parts: next }) });
-      if (!res.ok) throw new Error('Save failed');
-      setParts(next);
+      validateInventory(next);
+      const r = await fetch("/api/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...next, revision: data.revision }),
+      });
+      const result = await r.json();
+      if (!r.ok) throw Error(result.error);
+      setData({ ...next, revision: result.revision });
       return true;
-    } catch {
-      setSaveError('Could not save your change. Please try again.');
+    } catch (e) {
+      setSaveError(e.message || "Could not save. Please try again.");
       return false;
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
   }
-
+  function navigate(id) {
+    setActive(id);
+    setQuery("");
+    setStockFilter("all");
+    setCategoryFilter("all");
+    setConfirmDelete(null);
+    setDeleteCollection(false);
+  }
+  function chooseStart(id) {
+    try {
+      localStorage.setItem("inventory-start", id);
+      setPreferred(id);
+    } catch {
+      setSaveError("Your browser could not remember the starting page.");
+    }
+  }
+  const current = collections.find((c) => c.id === active);
+  const scopedIds = useMemo(
+    () => descendantIds(collections, active),
+    [collections, active],
+  );
+  const scoped =
+    active === "home" || active === "all"
+      ? parts
+      : parts.filter((p) => scopedIds.has(p.collectionId));
+  const now = new Date();
+  const today = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  const needsAttention = (p) =>
+    p.quantity <= (p.lowStock ?? 5) ||
+    (p.maintenanceDue && p.maintenanceDue <= today);
+  const low = parts.filter(needsAttention);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return scoped
+      .filter((p) => categoryFilter === "all" || p.category === categoryFilter)
+      .filter(
+        (p) =>
+          !q ||
+          [
+            p.name,
+            p.location,
+            p.brand,
+            p.model,
+            p.serialNumber,
+            p.notes,
+            p.pkg,
+            p.partNumber,
+            p.supplier,
+            collectionPath(collections, p.collectionId),
+            ...(p.specs || []).flatMap((s) => [s.key, s.value]),
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(q),
+      )
+      .filter(
+        (p) =>
+          stockFilter === "all" ||
+          (stockFilter === "low" ? needsAttention(p) : p.quantity === 0),
+      )
+      .slice()
+      .sort((a, b) =>
+        sortBy === "quantity"
+          ? a.quantity - b.quantity || a.name.localeCompare(b.name)
+          : sortBy === "location"
+            ? (a.location || "").localeCompare(b.location || "") ||
+              a.name.localeCompare(b.name)
+            : a.name.localeCompare(b.name),
+      );
+  }, [scoped, query, stockFilter, sortBy, collections, today, categoryFilter]);
+  function openAdd() {
+    setSaveError("");
+    setForm({
+      ...emptyForm(),
+      category:
+        current && descendantIds(collections, "garage").has(current.id)
+          ? "tools"
+          : "other",
+      collectionId:
+        current?.id ||
+        collections.find((c) => c.id === "electronics")?.id ||
+        collections[0]?.id ||
+        "",
+      lowStock:
+        current && descendantIds(collections, "garage").has(current.id)
+          ? "0"
+          : "5",
+      notes: "",
+      brand: "",
+      model: "",
+      serialNumber: "",
+      condition: "",
+      purchaseDate: "",
+      warrantyUntil: "",
+      maintenanceDue: "",
+    });
+    setShowForm(true);
+  }
+  function openEdit(p) {
+    setSaveError("");
+    setForm({
+      ...emptyForm(),
+      ...p,
+      quantity: String(p.quantity),
+      lowStock: String(p.lowStock ?? 5),
+      specs: p.specs?.length
+        ? p.specs.map((s) => ({ ...s }))
+        : [{ key: "", value: "" }],
+    });
+    setShowForm(true);
+  }
+  async function submitForm(e) {
+    e.preventDefault();
+    const item = {
+      ...form,
+      id: form.id || crypto.randomUUID(),
+      name: form.name.trim(),
+      quantity: Number(form.quantity),
+      lowStock: Number(form.lowStock),
+      specs: form.specs.filter((s) => s.key.trim() || s.value.trim()),
+      createdAt: form.createdAt || new Date().toISOString(),
+    };
+    if (
+      await persist({
+        ...data,
+        parts: isEditing
+          ? parts.map((p) => (p.id === item.id ? item : p))
+          : [...parts, item],
+      })
+    )
+      setShowForm(false);
+  }
+  function updateSpec(i, k, v) {
+    setForm((f) => ({
+      ...f,
+      specs: f.specs.map((s, j) => (i === j ? { ...s, [k]: v } : s)),
+    }));
+  }
+  function addSpecRow() {
+    setForm((f) => ({ ...f, specs: [...f.specs, { key: "", value: "" }] }));
+  }
+  function removeSpecRow(i) {
+    setForm((f) => ({ ...f, specs: f.specs.filter((_, j) => i !== j) }));
+  }
+  function adjustQty(id, delta) {
+    persist({
+      ...data,
+      parts: parts.map((p) =>
+        p.id === id ? { ...p, quantity: Math.max(0, p.quantity + delta) } : p,
+      ),
+    });
+  }
+  async function doDelete(id) {
+    if (await persist({ ...data, parts: parts.filter((p) => p.id !== id) }))
+      setConfirmDelete(null);
+  }
+  function editCollection(c = null) {
+    setCollectionError("");
+    setSaveError("");
+    setCollectionForm(
+      c ? { ...c } : { id: null, name: "", parentId: current?.id || null },
+    );
+  }
+  async function submitCollection(e) {
+    e.preventDefault();
+    const c = {
+      ...collectionForm,
+      id: collectionForm.id || crypto.randomUUID(),
+      name: collectionForm.name.trim(),
+    };
+    const next = {
+      ...data,
+      collections: collectionForm.id
+        ? collections.map((x) => (x.id === c.id ? c : x))
+        : [...collections, c],
+    };
+    try {
+      validateInventory(next);
+    } catch (e) {
+      setCollectionError(e.message);
+      return;
+    }
+    if (await persist(next)) {
+      setCollectionForm(null);
+      navigate(c.id);
+    }
+  }
+  async function removeCollection() {
+    if (scoped.length || collections.some((c) => c.parentId === active)) return;
+    const parent = current.parentId;
+    if (
+      await persist({
+        ...data,
+        collections: collections.filter((c) => c.id !== active),
+      })
+    ) {
+      if (preferred === active) chooseStart("home");
+      navigate(parent || "home");
+    }
+  }
   async function downloadBackup(format) {
     setExporting(true);
-    setSaveError('');
+    setSaveError("");
     try {
-      const response = await fetch(`/api/backup?format=${format}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error('Backup failed');
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `bench-inventory-${new Date().toISOString().slice(0, 10)}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      const r = await fetch("/api/backup?format=" + format, {
+        cache: "no-store",
+      });
+      if (!r.ok) throw Error();
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        "inventory-" + new Date().toISOString().slice(0, 10) + "." + format;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
-      setSaveError('Could not download your backup. Please try again.');
+      setSaveError("Could not download your backup. Please try again.");
     } finally {
       setExporting(false);
     }
   }
-
-  const counts = useMemo(() => {
-    const c = {};
-    for (const p of parts) c[p.category] = (c[p.category] || 0) + 1;
-    return c;
-  }, [parts]);
-
-  const filtered = useMemo(() => {
-    let list = parts;
-    if (activeCat !== 'all') list = list.filter((p) => p.category === activeCat);
-    const q = query.trim().toLowerCase();
-    if (q) {
-      list = list.filter((p) => {
-        const hay = [p.name, p.location, p.pkg, p.supplier, p.partNumber, ...(p.specs || []).flatMap((s) => [s.key, s.value])]
-          .join(' ')
-          .toLowerCase();
-        return hay.includes(q);
-      });
-    }
-    if (stockFilter === 'low') list = list.filter((p) => p.quantity <= (p.lowStock ?? 5));
-    if (stockFilter === 'out') list = list.filter((p) => p.quantity === 0);
-    return list.slice().sort((a, b) => {
-      const byName = a.name.localeCompare(b.name);
-      if (sortBy === 'quantity') return a.quantity - b.quantity || byName;
-      if (sortBy === 'location') return (a.location || '').localeCompare(b.location || '') || byName;
-      return byName;
-    });
-  }, [parts, activeCat, query, stockFilter, sortBy]);
-
-  function openAdd() {
-    setSaveError('');
-    setForm(emptyForm());
-    setShowForm(true);
-  }
-  function openEdit(p) {
-    setSaveError('');
-    setForm({
-      id: p.id,
-      name: p.name,
-      category: p.category,
-      quantity: String(p.quantity),
-      location: p.location || '',
-      pkg: p.pkg || '',
-      supplier: p.supplier || '',
-      partNumber: p.partNumber || '',
-      datasheetUrl: p.datasheetUrl || '',
-      cost: p.cost || '',
-      lowStock: String(p.lowStock ?? 5),
-      specs: p.specs && p.specs.length ? p.specs.map((s) => ({ ...s })) : [{ key: '', value: '' }],
-    });
-    setShowForm(true);
-  }
-
-  function updateSpec(idx, field, value) {
-    setForm((f) => {
-      const specs = f.specs.map((s, i) => (i === idx ? { ...s, [field]: value } : s));
-      return { ...f, specs };
-    });
-  }
-  function addSpecRow() {
-    setForm((f) => ({ ...f, specs: [...f.specs, { key: '', value: '' }] }));
-  }
-  function removeSpecRow(idx) {
-    setForm((f) => ({ ...f, specs: f.specs.filter((_, i) => i !== idx) }));
-  }
-
-  async function submitForm(e) {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-    const cleanSpecs = form.specs.filter((s) => s.key.trim() || s.value.trim());
-    const qty = Math.max(0, parseInt(form.quantity, 10) || 0);
-    const low = Math.max(0, parseInt(form.lowStock, 10) || 0);
-    if (isEditing) {
-      const next = parts.map((p) =>
-        p.id === form.id
-          ? { ...p, name: form.name.trim(), category: form.category, quantity: qty, location: form.location, pkg: form.pkg, supplier: form.supplier, partNumber: form.partNumber, datasheetUrl: form.datasheetUrl, cost: form.cost, lowStock: low, specs: cleanSpecs }
-          : p
-      );
-      if (!(await persist(next))) return;
-    } else {
-      const newPart = { id: uid(), name: form.name.trim(), category: form.category, quantity: qty, location: form.location, pkg: form.pkg, supplier: form.supplier, partNumber: form.partNumber, datasheetUrl: form.datasheetUrl, cost: form.cost, lowStock: low, specs: cleanSpecs };
-      if (!(await persist([...parts, newPart]))) return;
-    }
-    setShowForm(false);
-  }
-
-  function adjustQty(id, delta) {
-    const next = parts.map((p) => (p.id === id ? { ...p, quantity: Math.max(0, p.quantity + delta) } : p));
-    persist(next);
-  }
-
-  async function doDelete(id) {
-    if (await persist(parts.filter((p) => p.id !== id))) setConfirmDelete(null);
-  }
-
-  const totalParts = parts.length;
-  const lowStockCount = parts.filter((p) => p.quantity <= (p.lowStock ?? 5)).length;
-
-  if (!loaded) {
+  const ordered = collections
+    .slice()
+    .sort((a, b) =>
+      collectionPath(collections, a.id).localeCompare(
+        collectionPath(collections, b.id),
+      ),
+    );
+  const children = collections.filter(
+    (c) => c.parentId === (current?.id || null),
+  );
+  const home = active === "home" && !query;
+  function collectionCard(c) {
+    const ids = descendantIds(collections, c.id),
+      items = parts.filter((p) => ids.has(p.collectionId));
+    const Icon =
+      c.id === "electronics" ? Cpu : c.id === "garage" ? Wrench : Folder;
     return (
-      <div style={{ background: BG, color: TEXT_DIM, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'IBM Plex Sans, ui-sans-serif, system-ui, sans-serif' }}>
-        Loading inventory…
+      <button
+        className="collection-card"
+        key={c.id}
+        onClick={() => navigate(c.id)}
+      >
+        <Icon size={25} />
+        <span className="collection-card-title">{c.name}</span>
+        <span className="muted">
+          {items.length} item types ·{" "}
+          {items.reduce((n, p) => n + p.quantity, 0)} on hand
+        </span>
+        <span className="collection-card-bottom">
+          {items.filter(needsAttention).length
+            ? `${items.filter(needsAttention).length} need attention`
+            : "Everything in order"}
+          <ArrowRight size={18} />
+        </span>
+      </button>
+    );
+  }
+  function card(p) {
+    return (
+      <div key={p.id} className="item-wrap">
+        <button className="item-path" onClick={() => navigate(p.collectionId)}>
+          {collectionPath(collections, p.collectionId)}
+        </button>
+        <PartCard
+          saving={saving}
+          part={p}
+          onEdit={() => openEdit(p)}
+          onDelete={() => setConfirmDelete(p.id)}
+          confirming={confirmDelete === p.id}
+          onConfirmDelete={() => doDelete(p.id)}
+          onCancelDelete={() => setConfirmDelete(null)}
+          onAdjust={(d) => adjustQty(p.id, d)}
+        />
       </div>
     );
   }
-
+  if (!loaded)
+    return <div className="loading-screen">Loading your inventory…</div>;
   return (
-    <div style={{ background: BG, color: TEXT, minHeight: '100vh', fontFamily: "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif", display: 'flex', flexDirection: 'column' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
-        .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
-        .parts-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .parts-scroll::-webkit-scrollbar-thumb { background: ${BORDER}; border-radius: 4px; }
-        input, select, textarea { font-family: inherit; }
-        .grid-bg {
-          background-image: linear-gradient(${BORDER} 1px, transparent 1px), linear-gradient(90deg, ${BORDER} 1px, transparent 1px);
-          background-size: 28px 28px;
-          background-position: -1px -1px;
-        }
-        button { cursor: pointer; }
-        .mobile-cat-select { display: none; }
-        @media (max-width: 720px) {
-          .sidebar { display: none !important; }
-          .mobile-cat-select { display: block !important; }
-        }
-      `}</style>
-
-      <header className="app-header" style={{ borderBottom: `1px solid ${BORDER}`, padding: '18px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div className="brand" style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, letterSpacing: 0.2 }}>Bench Inventory</h1>
-          <span className="mono" style={{ fontSize: 12, color: TEXT_DIM }}>{totalParts} part types</span>
-          {lowStockCount > 0 && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: WARN, background: 'rgba(217,164,65,0.12)', padding: '3px 8px', borderRadius: 4 }}>
-              <AlertTriangle size={12} /> {lowStockCount} low
-            </span>
-          )}
-        </div>
-        <div className="header-actions" style={{ display: 'flex', gap: 10, alignItems: 'center', flex: '1 1 320px', maxWidth: 480 }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={15} color={TEXT_DIM} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+    <div className="workspace">
+      <header className="app-header workspace-header">
+        <button className="brand-button" onClick={() => navigate("home")}>
+          <Package size={24} />
+          <span>
+            My Inventory<small>Your things, in their place.</small>
+          </span>
+        </button>
+        <div className="header-actions">
+          <div className="search-box">
+            <Search size={18} />
             <input
-              aria-label="Search components"
+              aria-label="Search inventory"
               type="search"
+              placeholder={
+                current ? "Search this collection…" : "Search everything…"
+              }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, location, specs…"
-              style={{ width: '100%', boxSizing: 'border-box', background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 6, padding: '9px 10px 9px 32px', color: TEXT, fontSize: 13, outline: 'none' }}
             />
           </div>
-          <button disabled={!!loadError || saving} onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: 6, background: ACCENT, border: 'none', color: '#1A1200', fontWeight: 600, fontSize: 13, padding: '9px 14px', borderRadius: 6, whiteSpace: 'nowrap' }}>
-            <Plus size={15} /> Add part
+          <button
+            className="primary-button"
+            disabled={!!loadError || saving || !collections.length}
+            onClick={openAdd}
+          >
+            <Plus size={17} /> Add item
           </button>
         </div>
       </header>
-
-      <div className="app-body" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <div className="sidebar" style={{ width: 210, borderRight: `1px solid ${BORDER}`, padding: '16px 10px', flexShrink: 0, overflowY: 'auto' }}>
-          <SidebarItem label="All parts" count={parts.length} active={activeCat === 'all'} onClick={() => setActiveCat('all')} />
-          <div style={{ height: 8 }} />
-          {CATEGORIES.map((c) => (
-            <SidebarItem key={c.id} label={c.label} count={counts[c.id] || 0} active={activeCat === c.id} onClick={() => setActiveCat(c.id)} glyph={<CategoryGlyph category={c.id} size={16} color={activeCat === c.id ? ACCENT : TEXT_DIM} />} />
+      <div className="workspace-layout">
+        <aside className="workspace-nav">
+          <SidebarItem
+            label="Overview"
+            active={active === "home"}
+            onClick={() => navigate("home")}
+            glyph={<Home size={17} />}
+          />
+          <SidebarItem
+            label="All items"
+            count={parts.length}
+            active={active === "all"}
+            onClick={() => navigate("all")}
+            glyph={<Package size={17} />}
+          />
+          <div className="nav-heading">COLLECTIONS</div>
+          {ordered.map((c) => (
+            <SidebarItem
+              key={c.id}
+              label={collectionPath(collections, c.id)}
+              active={active === c.id}
+              onClick={() => navigate(c.id)}
+              glyph={<Folder size={16} />}
+            />
           ))}
-        </div>
-
-        <main className="parts-scroll grid-bg" style={{ flex: 1, minWidth: 0, overflowY: 'auto', padding: 20 }}>
-          <div className="inventory-toolbar">
-          <div>
-            <h2 className="section-title">{activeCat === 'all' ? 'Your components' : CATEGORIES.find((c) => c.id === activeCat)?.label}</h2>
-            <p className="results-summary" role="status">{loadError ? 'Connection unavailable' : `${filtered.length} of ${totalParts} part types · ${parts.reduce((sum, p) => sum + p.quantity, 0)} items on hand`}</p>
-          </div>
-          <div className="filter-controls">
-            <label className="sr-only" htmlFor="stock-filter">Stock status</label>
-            <select id="stock-filter" value={stockFilter} onChange={(e) => setStockFilter(e.target.value)} style={inputStyle}>
-              <option value="all">All stock</option>
-              <option value="low">Low stock ({lowStockCount})</option>
-              <option value="out">Out of stock ({parts.filter((p) => p.quantity === 0).length})</option>
-            </select>
-            <label className="sr-only" htmlFor="sort-by">Sort components</label>
-            <select id="sort-by" value={sortBy} onChange={(e) => setSortBy(e.target.value)} style={inputStyle}>
-              <option value="name">Name A–Z</option>
-              <option value="quantity">Lowest quantity</option>
-              <option value="location">Storage location</option>
-            </select>
-          </div>
-          </div>
-          <select
-            aria-label="Component category"
-            className="mobile-cat-select"
-            value={activeCat}
-            onChange={(e) => setActiveCat(e.target.value)}
-            style={{ ...inputStyle, marginBottom: 14, maxWidth: 260 }}
+          <button
+            className="text-button"
+            disabled={saving || !!loadError}
+            onClick={() => {
+              setCollectionError("");
+              setSaveError("");
+              setCollectionForm({ id: null, name: "", parentId: null });
+            }}
           >
-            <option value="all">All parts ({parts.length})</option>
-            {CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>{c.label} ({counts[c.id] || 0})</option>
-            ))}
-          </select>
-          <div className="backup-tools">
-            <button className="secondary-button" disabled={!!loadError || saving || exporting} onClick={() => downloadBackup('json')}><Download size={15} /> Download backup</button>
-            <button className="secondary-button" disabled={!!loadError || saving || exporting} onClick={() => downloadBackup('csv')}><Download size={15} /> Export CSV</button>
-            <span>Exports include all components, regardless of filters.</span>
-          </div>
-          {(saveError || loadError) && (
-            <div role="alert" style={{ marginBottom: 14, fontSize: 12, color: TEXT, background: 'rgba(192,87,70,0.1)', border: `1px solid ${DANGER}`, borderRadius: 6, padding: '8px 10px' }}>{loadError || saveError} {loadError && <button onClick={loadParts} className="retry-button">Try again</button>}</div>
-          )}
-          {loadError ? null : filtered.length === 0 ? (
-            <div style={{ color: TEXT_DIM, fontSize: 14, padding: '40px 0', textAlign: 'center' }}>
-              <Package size={32} style={{ display: 'block', margin: '0 auto 16px' }} />
-              <h3 style={{ color: TEXT }}>{parts.length === 0 ? 'A place for every component' : 'No matching components'}</h3>
-              <p>{parts.length === 0 ? 'Add your first part to start tracking what is on your bench.' : 'Try another search, category, or stock filter.'}</p>
-              {parts.length === 0 ? <button className="retry-button" onClick={openAdd}>Add your first part</button> : <button className="retry-button" onClick={() => { setQuery(''); setActiveCat('all'); setStockFilter('all'); }}>Clear filters</button>}
-            </div>
-          ) : (
-            <div className="parts-grid" aria-busy={saving} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-              {filtered.map((p) => (
-                <PartCard
-                  key={p.id}
-                  part={p}
-                  saving={saving}
-                  onEdit={() => openEdit(p)}
-                  onDelete={() => setConfirmDelete(p.id)}
-                  onAdjust={(d) => adjustQty(p.id, d)}
-                  confirming={confirmDelete === p.id}
-                  onConfirmDelete={() => doDelete(p.id)}
-                  onCancelDelete={() => setConfirmDelete(null)}
-                />
+            <Plus size={16} /> Add collection
+          </button>
+        </aside>
+        <main className="workspace-main">
+          <nav className="mobile-collection-nav">
+            <label htmlFor="collection-nav">Browse</label>
+            <select
+              id="collection-nav"
+              value={active}
+              onChange={(e) => navigate(e.target.value)}
+              style={inputStyle}
+            >
+              <option value="home">Overview</option>
+              <option value="all">All items</option>
+              {ordered.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {collectionPath(collections, c.id)}
+                </option>
               ))}
+            </select>
+          </nav>
+          {(loadError || saveError) && (
+            <div className="error-banner" role="alert">
+              {loadError || saveError}
+              <button className="secondary-button" onClick={loadParts}>
+                Reload inventory
+              </button>
             </div>
           )}
+          <div className="workspace-heading">
+            <div>
+              <div className="eyebrow">
+                {current ? "COLLECTION" : "YOUR INVENTORY"}
+              </div>
+              <h1>
+                {home
+                  ? "A place for everything."
+                  : current
+                    ? current.name
+                    : query
+                      ? "Search results"
+                      : "All items"}
+              </h1>
+              <p className="muted">
+                {home
+                  ? "From the electronics bench to the garage. Pick a collection to get started."
+                  : current
+                    ? collectionPath(collections, current.id)
+                    : "Tools, components and equipment across all your collections."}
+              </p>
+            </div>
+            <div className="heading-actions">
+              {current && (
+                <>
+                  <button
+                    className="secondary-button"
+                    disabled={saving}
+                    onClick={() => editCollection(current)}
+                  >
+                    <Settings size={16} /> Edit collection
+                  </button>
+                  <button
+                    className="secondary-button"
+                    disabled={saving}
+                    onClick={() => editCollection()}
+                  >
+                    <Plus size={16} /> Subcollection
+                  </button>
+                </>
+              )}
+              {!current && (
+                <button
+                  className="secondary-button"
+                  disabled={saving || !!loadError}
+                  onClick={() => {
+                    setCollectionError("");
+                    setSaveError("");
+                    setCollectionForm({ id: null, name: "", parentId: null });
+                  }}
+                >
+                  <Plus size={16} /> Add collection
+                </button>
+              )}
+            </div>
+          </div>
+          {home && (
+            <>
+              <div className="overview-stats">
+                <span>
+                  <strong>{parts.length}</strong> item types
+                </span>
+                <span>
+                  <strong>
+                    {collections.filter((c) => !c.parentId).length}
+                  </strong>{" "}
+                  collections
+                </span>
+                <button
+                  onClick={() => {
+                    navigate("all");
+                    setStockFilter("low");
+                  }}
+                >
+                  <strong>{low.length}</strong> need attention
+                </button>
+              </div>
+              <div className="collection-grid">
+                {children.map(collectionCard)}
+              </div>
+              {!children.length && !loadError && (
+                <p className="empty-state">
+                  Create your first collection to start organising your
+                  inventory.
+                </p>
+              )}
+              <div className="home-lists">
+                <section>
+                  <h2>Recently added</h2>
+                  {parts.length ? (
+                    <div className="compact-list">
+                      {parts
+                        .slice()
+                        .sort((a, b) =>
+                          (b.createdAt || "").localeCompare(a.createdAt || ""),
+                        )
+                        .slice(0, 5)
+                        .map((p) => (
+                          <button key={p.id} onClick={() => openEdit(p)}>
+                            <span>
+                              {p.name}
+                              <small>
+                                {collectionPath(collections, p.collectionId)}
+                              </small>
+                            </span>
+                            <span>
+                              {p.quantity} on hand <ArrowRight size={14} />
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">
+                      Your new items will appear here. Add a component, tool or
+                      piece of equipment to get started.
+                    </p>
+                  )}
+                </section>
+                <section>
+                  <h2>Needs attention</h2>
+                  {low.length ? (
+                    <div className="compact-list">
+                      {low.slice(0, 5).map((p) => (
+                        <button key={p.id} onClick={() => openEdit(p)}>
+                          <span>
+                            {p.name}
+                            <small>
+                              {p.maintenanceDue && p.maintenanceDue <= today
+                                ? "Maintenance due " + p.maintenanceDue
+                                : p.quantity === 0
+                                  ? "Out of stock"
+                                  : "Low stock"}
+                            </small>
+                          </span>
+                          <ArrowRight size={16} />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">
+                      No low stock or overdue maintenance.
+                    </p>
+                  )}
+                </section>
+              </div>
+            </>
+          )}
+          {!home && (
+            <>
+              {!!children.length && current && (
+                <div className="collection-grid subcollection-grid">
+                  {children.map(collectionCard)}
+                </div>
+              )}
+              <div className="inventory-toolbar">
+                <p className="muted" role="status">
+                  {filtered.length} item types ·{" "}
+                  {filtered.reduce((n, p) => n + p.quantity, 0)} on hand
+                  {current ? " · includes subcollections" : ""}
+                </p>
+                <div className="filter-controls">
+                  <select
+                    aria-label="Category filter"
+                    style={inputStyle}
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="all">All categories</option>
+                    {CATEGORIES.filter((c) =>
+                      scoped.some((p) => p.category === c.id),
+                    ).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Stock status"
+                    style={inputStyle}
+                    value={stockFilter}
+                    onChange={(e) => setStockFilter(e.target.value)}
+                  >
+                    <option value="all">All stock</option>
+                    <option value="low">Needs attention</option>
+                    <option value="out">Out of stock</option>
+                  </select>
+                  <select
+                    aria-label="Sort items"
+                    style={inputStyle}
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                  >
+                    <option value="name">Name A–Z</option>
+                    <option value="quantity">Lowest quantity</option>
+                    <option value="location">Storage location</option>
+                  </select>
+                </div>
+              </div>
+              <div
+                className="parts-grid"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fill,minmax(min(100%,310px),1fr))",
+                  gap: 16,
+                }}
+              >
+                {!loadError && filtered.map(card)}
+              </div>
+              {!loadError && !filtered.length && (
+                <div className="empty-state">
+                  <h2>
+                    {query || stockFilter !== "all" || categoryFilter !== "all"
+                      ? "No matching items"
+                      : "Nothing here yet"}
+                  </h2>
+                  <p>
+                    {query || stockFilter !== "all" || categoryFilter !== "all"
+                      ? "Try another search or stock filter."
+                      : "Add an item here, or move an existing item using its edit form."}
+                  </p>
+                </div>
+              )}
+              {current && (
+                <div className="collection-settings">
+                  <button
+                    className="text-button"
+                    disabled={saving}
+                    onClick={() => setDeleteCollection(!deleteCollection)}
+                  >
+                    Delete collection
+                  </button>
+                  {deleteCollection &&
+                    (scoped.length || children.length ? (
+                      <p className="muted">
+                        Move items and subcollections elsewhere before deleting
+                        this collection.
+                      </p>
+                    ) : (
+                      <div>
+                        <p>Delete “{current.name}”? This cannot be undone.</p>
+                        <button
+                          className="secondary-button"
+                          disabled={saving}
+                          onClick={removeCollection}
+                        >
+                          Confirm delete collection
+                        </button>{" "}
+                        <button
+                          className="secondary-button"
+                          onClick={() => setDeleteCollection(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </>
+          )}
+          <footer className="workspace-footer">
+            <div className="backup-tools">
+              <button
+                className="secondary-button"
+                disabled={!!loadError || saving || exporting}
+                onClick={() => downloadBackup("json")}
+              >
+                <Download size={15} /> Download backup
+              </button>
+              <button
+                className="secondary-button"
+                disabled={!!loadError || saving || exporting}
+                onClick={() => downloadBackup("csv")}
+              >
+                Export CSV
+              </button>
+              <span>All collections and items are included.</span>
+            </div>
+            <label className="start-setting">
+              Start this device on
+              <select
+                style={inputStyle}
+                value={preferred}
+                onChange={(e) => chooseStart(e.target.value)}
+              >
+                <option value="home">Overview</option>
+                {ordered.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {collectionPath(collections, c.id)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </footer>
         </main>
       </div>
-
-      <div className="save-status" role="status">{saving ? 'Saving changes…' : exporting ? 'Preparing download…' : ''}</div>
+      <div className="save-status" role="status">
+        {saving ? "Saving changes…" : exporting ? "Preparing download…" : ""}
+      </div>
       {showForm && (
         <FormModal
           saving={saving}
           saveError={saveError}
           form={form}
           setForm={setForm}
+          collections={ordered}
           isEditing={isEditing}
-          onClose={() => { if (!savingRef.current) setShowForm(false); }}
+          onClose={() => {
+            if (!savingRef.current) setShowForm(false);
+          }}
           onSubmit={submitForm}
           updateSpec={updateSpec}
           addSpecRow={addSpecRow}
           removeSpecRow={removeSpecRow}
         />
       )}
+      {collectionForm && (
+        <CollectionModal
+          form={collectionForm}
+          setForm={setCollectionForm}
+          collections={ordered}
+          saving={saving}
+          error={collectionError || saveError}
+          onClose={() => {
+            if (!savingRef.current) setCollectionForm(null);
+          }}
+          onSubmit={submitCollection}
+        />
+      )}
+    </div>
+  );
+}
+
+function CollectionModal({
+  form,
+  setForm,
+  collections,
+  saving,
+  error,
+  onClose,
+  onSubmit,
+}) {
+  const ref = useRef(null),
+    closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const previous = document.activeElement,
+      overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    ref.current.querySelector("input").focus();
+    function key(e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeRef.current();
+      }
+      if (e.key === "Tab") {
+        const els = [
+          ...ref.current.querySelectorAll(
+            "input:not(:disabled),select:not(:disabled),button:not(:disabled)",
+          ),
+        ];
+        if (!els.length) {
+          e.preventDefault();
+          return;
+        }
+        if (e.shiftKey && document.activeElement === els[0]) {
+          e.preventDefault();
+          els.at(-1).focus();
+        } else if (!e.shiftKey && document.activeElement === els.at(-1)) {
+          e.preventDefault();
+          els[0].focus();
+        }
+      }
+    }
+    document.addEventListener("keydown", key);
+    return () => {
+      document.body.style.overflow = overflow;
+      document.removeEventListener("keydown", key);
+      previous?.focus();
+    };
+  }, []);
+  const excluded = form.id ? descendantIds(collections, form.id) : new Set();
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="collection-title"
+        className="part-form collection-form"
+        onSubmit={onSubmit}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="dialog-heading">
+          <h2 id="collection-title">
+            {form.id
+              ? "Edit collection"
+              : form.parentId
+                ? "Add subcollection"
+                : "Add collection"}
+          </h2>
+          <button
+            className="text-button"
+            type="button"
+            disabled={saving}
+            aria-label="Close collection form"
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
+        </div>
+        {error && (
+          <p role="alert" className="error-banner">
+            {error}
+          </p>
+        )}
+        <fieldset disabled={saving}>
+          <Field label="Collection name">
+            <input
+              required
+              maxLength={120}
+              style={inputStyle}
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Woodworking tools"
+            />
+          </Field>
+          <Field label="Inside">
+            <select
+              style={inputStyle}
+              value={form.parentId || ""}
+              onChange={(e) =>
+                setForm({ ...form, parentId: e.target.value || null })
+              }
+            >
+              <option value="">Homepage — top-level collection</option>
+              {collections
+                .filter((c) => !excluded.has(c.id))
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {collectionPath(collections, c.id)}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          <p className="muted">
+            Rename or move a collection at any time. Its items and
+            subcollections stay with it.
+          </p>
+          <div className="dialog-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button className="primary-button" type="submit">
+              {saving ? "Saving…" : "Save collection"}
+            </button>
+          </div>
+        </fieldset>
+      </form>
     </div>
   );
 }
@@ -459,93 +1096,321 @@ function SidebarItem({ label, count, active, onClick, glyph }) {
       onClick={onClick}
       aria-pressed={active}
       style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
         gap: 8,
-        background: active ? SURFACE_2 : 'transparent',
-        border: 'none',
+        background: active ? SURFACE_2 : "transparent",
+        border: "none",
         borderRadius: 6,
-        padding: '8px 10px',
+        padding: "8px 10px",
         marginBottom: 2,
         color: active ? TEXT : TEXT_DIM,
         fontSize: 13,
-        textAlign: 'left',
+        textAlign: "left",
       }}
     >
       {glyph}
       <span style={{ flex: 1 }}>{label}</span>
-      <span className="mono" style={{ fontSize: 11, color: TEXT_DIM }}>{count}</span>
+      <span className="mono" style={{ fontSize: 11, color: TEXT_DIM }}>
+        {count}
+      </span>
     </button>
   );
 }
 
-function PartCard({ saving, part, onEdit, onDelete, onAdjust, confirming, onConfirmDelete, onCancelDelete }) {
+function PartCard({
+  saving,
+  part,
+  onEdit,
+  onDelete,
+  onAdjust,
+  confirming,
+  onConfirmDelete,
+  onCancelDelete,
+}) {
   const low = part.quantity <= (part.lowStock ?? 5);
   const zero = part.quantity === 0;
   return (
-    <article className="part-card" style={{ background: SURFACE, border: `1px solid ${zero ? DANGER : low ? WARN : BORDER}`, borderRadius: 8, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-        <div style={{ width: 30, height: 30, borderRadius: 6, background: SURFACE_2, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <CategoryGlyph category={part.category} size={16} color={ACCENT} />
+    <article
+      className="part-card"
+      style={{
+        background: SURFACE,
+        border: `1px solid ${zero ? DANGER : low ? WARN : BORDER}`,
+        borderRadius: 8,
+        padding: 14,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 6,
+            background: SURFACE_2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {["tools", "equipment", "consumables", "spares"].includes(
+            part.category,
+          ) ? (
+            <Wrench size={16} color={ACCENT} />
+          ) : (
+            <CategoryGlyph category={part.category} size={16} color={ACCENT} />
+          )}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.3, wordBreak: 'break-word' }}>{part.name}</div>
-          {part.partNumber && <div className="mono" style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}>{part.partNumber}</div>}
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 500,
+              lineHeight: 1.3,
+              wordBreak: "break-word",
+            }}
+          >
+            {part.name}
+          </div>
+          {part.partNumber && (
+            <div
+              className="mono"
+              style={{ fontSize: 11, color: TEXT_DIM, marginTop: 2 }}
+            >
+              {part.partNumber}
+            </div>
+          )}
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button disabled={saving} onClick={onEdit} aria-label={`Edit ${part.name}`} title="Edit" style={{ background: 'transparent', border: 'none', color: TEXT_DIM, padding: 4 }}><Pencil size={14} /></button>
-          <button disabled={saving} onClick={onDelete} aria-label={`Delete ${part.name}`} title="Delete" style={{ background: 'transparent', border: 'none', color: TEXT_DIM, padding: 4 }}><Trash2 size={14} /></button>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button
+            disabled={saving}
+            onClick={onEdit}
+            aria-label={`Edit ${part.name}`}
+            title="Edit"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: TEXT_DIM,
+              padding: 4,
+            }}
+          >
+            <Pencil size={14} />
+          </button>
+          <button
+            disabled={saving}
+            onClick={onDelete}
+            aria-label={`Delete ${part.name}`}
+            title="Delete"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: TEXT_DIM,
+              padding: 4,
+            }}
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       </div>
 
       {confirming && (
-        <div style={{ background: 'rgba(192,87,70,0.12)', border: `1px solid ${DANGER}`, borderRadius: 6, padding: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-          <span>Delete this part?</span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button disabled={saving} onClick={onConfirmDelete} style={{ background: DANGER, border: 'none', color: '#fff', borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>Delete</button>
-            <button onClick={onCancelDelete} style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 4, padding: '4px 8px', fontSize: 11 }}>Cancel</button>
+        <div
+          style={{
+            background: "rgba(192,87,70,0.12)",
+            border: `1px solid ${DANGER}`,
+            borderRadius: 6,
+            padding: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: 12,
+          }}
+        >
+          <span>Delete this item?</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              disabled={saving}
+              onClick={onConfirmDelete}
+              style={{
+                background: DANGER,
+                border: "none",
+                color: "#fff",
+                borderRadius: 4,
+                padding: "4px 8px",
+                fontSize: 11,
+              }}
+            >
+              Delete
+            </button>
+            <button
+              onClick={onCancelDelete}
+              style={{
+                background: "transparent",
+                border: `1px solid ${BORDER}`,
+                color: TEXT,
+                borderRadius: 4,
+                padding: "4px 8px",
+                fontSize: 11,
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
 
       {(part.location || part.pkg) && (
-        <div style={{ display: 'flex', gap: 12, fontSize: 12, color: TEXT_DIM, flexWrap: 'wrap' }}>
-          {part.location && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><MapPin size={12} /> {part.location}</span>}
-          {part.pkg && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Package size={12} /> {part.pkg}</span>}
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            fontSize: 12,
+            color: TEXT_DIM,
+            flexWrap: "wrap",
+          }}
+        >
+          {part.location && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <MapPin size={12} /> {part.location}
+            </span>
+          )}
+          {part.pkg && (
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <Package size={12} /> {part.pkg}
+            </span>
+          )}
         </div>
       )}
 
       {part.specs && part.specs.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {part.specs.map((s, i) => (
-            <span key={i} className="mono" style={{ fontSize: 11, background: SURFACE_2, color: TEXT_DIM, padding: '3px 7px', borderRadius: 4 }}>
-              {s.key ? `${s.key}: ` : ''}{s.value}
+            <span
+              key={i}
+              className="mono"
+              style={{
+                fontSize: 11,
+                background: SURFACE_2,
+                color: TEXT_DIM,
+                padding: "3px 7px",
+                borderRadius: 4,
+              }}
+            >
+              {s.key ? `${s.key}: ` : ""}
+              {s.value}
             </span>
           ))}
         </div>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button disabled={saving || zero} aria-label={`Use one ${part.name}`} onClick={() => onAdjust(-1)} style={{ width: 24, height: 24, background: SURFACE_2, border: `1px solid ${BORDER}`, borderRadius: 5, color: TEXT, fontSize: 14, lineHeight: 1 }}>−</button>
-          <span className="mono" style={{ fontSize: 15, fontWeight: 500, minWidth: 28, textAlign: 'center', color: zero ? DANGER : low ? WARN : TEXT }}>{part.quantity}</span>
-          <button disabled={saving} aria-label={`Add one ${part.name}`} onClick={() => onAdjust(1)} style={{ width: 24, height: 24, background: SURFACE_2, border: `1px solid ${BORDER}`, borderRadius: 5, color: TEXT, fontSize: 14, lineHeight: 1 }}>+</button>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 2,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            disabled={saving || zero}
+            aria-label={`Use one ${part.name}`}
+            onClick={() => onAdjust(-1)}
+            style={{
+              width: 24,
+              height: 24,
+              background: SURFACE_2,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 5,
+              color: TEXT,
+              fontSize: 14,
+              lineHeight: 1,
+            }}
+          >
+            −
+          </button>
+          <span
+            className="mono"
+            style={{
+              fontSize: 15,
+              fontWeight: 500,
+              minWidth: 28,
+              textAlign: "center",
+              color: zero ? DANGER : low ? WARN : TEXT,
+            }}
+          >
+            {part.quantity}
+          </span>
+          <button
+            disabled={saving}
+            aria-label={`Add one ${part.name}`}
+            onClick={() => onAdjust(1)}
+            style={{
+              width: 24,
+              height: 24,
+              background: SURFACE_2,
+              border: `1px solid ${BORDER}`,
+              borderRadius: 5,
+              color: TEXT,
+              fontSize: 14,
+              lineHeight: 1,
+            }}
+          >
+            +
+          </button>
         </div>
         {part.datasheetUrl && (
-          <a href={part.datasheetUrl} target="_blank" rel="noreferrer" style={{ color: ACCENT, fontSize: 11, display: 'flex', alignItems: 'center', gap: 3, textDecoration: 'none' }}>
+          <a
+            href={part.datasheetUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              color: ACCENT,
+              fontSize: 11,
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              textDecoration: "none",
+            }}
+          >
             Datasheet <ExternalLink size={11} />
           </a>
         )}
       </div>
+      {part.brand && (
+        <div className="muted">
+          {part.brand} {part.model}
+        </div>
+      )}
+      {part.maintenanceDue && (
+        <div className="muted">Maintenance: {part.maintenanceDue}</div>
+      )}
       {(zero || low) && (
-        <div style={{ fontSize: 11, color: zero ? DANGER : WARN }}>{zero ? 'Out of stock' : 'Low stock'}</div>
+        <div style={{ fontSize: 11, color: zero ? DANGER : WARN }}>
+          {zero ? "Out of stock" : "Low stock"}
+        </div>
       )}
     </article>
   );
 }
 
-function FormModal({ saving, saveError, form, setForm, isEditing, onClose, onSubmit, updateSpec, addSpecRow, removeSpecRow }) {
+function FormModal({
+  collections,
+  saving,
+  saveError,
+  form,
+  setForm,
+  isEditing,
+  onClose,
+  onSubmit,
+  updateSpec,
+  addSpecRow,
+  removeSpecRow,
+}) {
   const nameRef = useRef(null);
   const modalRef = useRef(null);
   const closeRef = useRef(onClose);
@@ -553,112 +1418,400 @@ function FormModal({ saving, saveError, form, setForm, isEditing, onClose, onSub
   useEffect(() => {
     const previous = document.activeElement;
     const overflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     nameRef.current?.focus();
     function onKey(event) {
-      if (event.key === 'Escape') { event.preventDefault(); closeRef.current(); }
-      if (event.key !== 'Tab') return;
-      const controls = [...modalRef.current.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex="0"]')];
-      if (!controls.length) { event.preventDefault(); return; }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+      }
+      if (event.key !== "Tab") return;
+      const controls = [
+        ...modalRef.current.querySelectorAll(
+          'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex="0"]',
+        ),
+      ];
+      if (!controls.length) {
+        event.preventDefault();
+        return;
+      }
       const first = controls[0];
       const last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
     }
-    document.addEventListener('keydown', onKey);
+    document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = overflow;
-      document.removeEventListener('keydown', onKey);
+      document.removeEventListener("keydown", onKey);
       previous?.focus();
     };
   }, []);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   return (
-    <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={onClose}>
-      <form ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="part-form-title" className="part-form" onSubmit={onSubmit} onClick={(e) => e.stopPropagation()} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 10, width: 480, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', padding: 20, color: TEXT, fontFamily: "'IBM Plex Sans', sans-serif" }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h2 id="part-form-title" style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>{isEditing ? 'Edit part' : 'Add part'}</h2>
-          <button disabled={saving} aria-label="Close part form" type="button" onClick={onClose} style={{ background: 'transparent', border: 'none', color: TEXT_DIM }}><X size={18} /></button>
+    <div
+      className="modal-backdrop"
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: 16,
+      }}
+      onClick={onClose}
+    >
+      <form
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="part-form-title"
+        className="part-form"
+        onSubmit={onSubmit}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: SURFACE,
+          border: `1px solid ${BORDER}`,
+          borderRadius: 10,
+          width: 480,
+          maxWidth: "100%",
+          maxHeight: "88vh",
+          overflowY: "auto",
+          padding: 20,
+          color: TEXT,
+          fontFamily: "'IBM Plex Sans', sans-serif",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <h2
+            id="part-form-title"
+            style={{ margin: 0, fontSize: 16, fontWeight: 600 }}
+          >
+            {isEditing ? "Edit item" : "Add item"}
+          </h2>
+          <button
+            disabled={saving}
+            aria-label="Close item form"
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: TEXT_DIM,
+            }}
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {saveError && <p role="alert" style={{ color: WARN }}>{saveError}</p>}
-        <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
-        <Field label="Name">
-          <input ref={nameRef} required value={form.name} onChange={set('name')} placeholder="e.g. LED, 5mm red diffused" style={inputStyle} />
-        </Field>
+        {saveError && (
+          <p role="alert" style={{ color: WARN }}>
+            {saveError}
+          </p>
+        )}
+        <fieldset
+          disabled={saving}
+          style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}
+        >
+          <Field label="Name">
+            <input
+              ref={nameRef}
+              required
+              value={form.name}
+              onChange={set("name")}
+              placeholder="e.g. Cordless drill or 220Ω resistor"
+              style={inputStyle}
+            />
+          </Field>
 
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Field label="Category" style={{ flex: 1 }}>
-            <select value={form.category} onChange={set('category')} style={inputStyle}>
-              {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          <Field label="Collection">
+            <select
+              required
+              value={form.collectionId}
+              onChange={set("collectionId")}
+              style={inputStyle}
+            >
+              <option value="" disabled>
+                Choose a collection
+              </option>
+              {collections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {collectionPath(collections, c.id)}
+                </option>
+              ))}
             </select>
           </Field>
-          <Field label="Package" style={{ flex: 1 }}>
-            <input value={form.pkg} onChange={set('pkg')} placeholder="THT, SMD, DIP-8…" style={inputStyle} />
-          </Field>
-        </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <Field label="Category" style={{ flex: 1 }}>
+              <select
+                value={form.category}
+                onChange={set("category")}
+                style={inputStyle}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Package / format" style={{ flex: 1 }}>
+              <input
+                value={form.pkg}
+                onChange={set("pkg")}
+                placeholder="THT, SMD, DIP-8…"
+                style={inputStyle}
+              />
+            </Field>
+          </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Field label="Quantity" style={{ flex: 1 }}>
-            <input type="number" min="0" value={form.quantity} onChange={set('quantity')} style={inputStyle} />
-          </Field>
-          <Field label="Low-stock alert at" style={{ flex: 1 }}>
-            <input type="number" min="0" value={form.lowStock} onChange={set('lowStock')} style={inputStyle} />
-          </Field>
-        </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <Field label="Quantity" style={{ flex: 1 }}>
+              <input
+                type="number"
+                min="0"
+                value={form.quantity}
+                onChange={set("quantity")}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Low-stock alert at" style={{ flex: 1 }}>
+              <input
+                type="number"
+                min="0"
+                value={form.lowStock}
+                onChange={set("lowStock")}
+                style={inputStyle}
+              />
+            </Field>
+          </div>
 
-        <Field label="Location">
-          <input value={form.location} onChange={set('location')} placeholder="e.g. Drawer 3, bin B" style={inputStyle} />
-        </Field>
-
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Field label="Part number" style={{ flex: 1 }}>
-            <input value={form.partNumber} onChange={set('partNumber')} style={inputStyle} />
+          <Field label="Location">
+            <input
+              value={form.location}
+              onChange={set("location")}
+              placeholder="e.g. Garage / Cabinet 2 / Shelf 1"
+              style={inputStyle}
+            />
           </Field>
-          <Field label="Supplier" style={{ flex: 1 }}>
-            <input value={form.supplier} onChange={set('supplier')} style={inputStyle} />
-          </Field>
-        </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Field label="Datasheet URL" style={{ flex: 1 }}>
-            <input type="url" value={form.datasheetUrl} onChange={set('datasheetUrl')} placeholder="https://…" style={inputStyle} />
-          </Field>
-          <Field label="Cost each" style={{ flex: 1 }}>
-            <input value={form.cost} onChange={set('cost')} placeholder="e.g. R2.50" style={inputStyle} />
-          </Field>
-        </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <Field label="Part number" style={{ flex: 1 }}>
+              <input
+                value={form.partNumber}
+                onChange={set("partNumber")}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Supplier" style={{ flex: 1 }}>
+              <input
+                value={form.supplier}
+                onChange={set("supplier")}
+                style={inputStyle}
+              />
+            </Field>
+          </div>
 
-        <div style={{ marginTop: 4, marginBottom: 6 }}>
-          <label style={labelStyle}>Specs</label>
-          {form.specs.map((s, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-              <input aria-label={`Specification ${i + 1} name`} value={s.key} onChange={(e) => updateSpec(i, 'key', e.target.value)} placeholder="Forward voltage" style={{ ...inputStyle, flex: 1 }} />
-              <input aria-label={`Specification ${i + 1} value`} value={s.value} onChange={(e) => updateSpec(i, 'value', e.target.value)} placeholder="2.1V" style={{ ...inputStyle, flex: 1 }} />
-              <button type="button" aria-label={`Remove specification ${i + 1}`} onClick={() => removeSpecRow(i)} style={{ background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, color: TEXT_DIM, width: 32 }}>×</button>
-            </div>
-          ))}
-          <button type="button" onClick={addSpecRow} style={{ background: 'transparent', border: `1px dashed ${BORDER}`, color: TEXT_DIM, borderRadius: 6, padding: '6px 10px', fontSize: 12, width: '100%' }}>+ Add spec</button>
-        </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <Field label="Manual / datasheet URL" style={{ flex: 1 }}>
+              <input
+                type="url"
+                value={form.datasheetUrl}
+                onChange={set("datasheetUrl")}
+                placeholder="https://…"
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Cost each" style={{ flex: 1 }}>
+              <input
+                value={form.cost}
+                onChange={set("cost")}
+                placeholder="e.g. R2.50"
+                style={inputStyle}
+              />
+            </Field>
+          </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 18 }}>
-          <button disabled={saving} type="button" onClick={onClose} style={{ background: 'transparent', border: `1px solid ${BORDER}`, color: TEXT, borderRadius: 6, padding: '9px 16px', fontSize: 13 }}>Cancel</button>
-          <button type="submit" style={{ background: ACCENT, border: 'none', color: '#1A1200', fontWeight: 600, borderRadius: 6, padding: '9px 16px', fontSize: 13 }}>{saving ? 'Saving…' : isEditing ? 'Save changes' : 'Add part'}</button>
-        </div>
+          <details
+            className="item-details"
+            open={
+              !!(
+                form.brand ||
+                form.model ||
+                form.serialNumber ||
+                form.maintenanceDue
+              )
+            }
+          >
+            <summary>Tool & equipment details</summary>
+            {[
+              ["brand", "Brand"],
+              ["model", "Model"],
+              ["serialNumber", "Serial number"],
+              ["condition", "Condition"],
+              ["purchaseDate", "Purchase date"],
+              ["warrantyUntil", "Warranty until"],
+              ["maintenanceDue", "Next maintenance"],
+            ].map(([key, label]) => (
+              <Field key={key} label={label}>
+                <input
+                  type={
+                    [
+                      "purchaseDate",
+                      "warrantyUntil",
+                      "maintenanceDue",
+                    ].includes(key)
+                      ? "date"
+                      : "text"
+                  }
+                  style={inputStyle}
+                  value={form[key] || ""}
+                  onChange={set(key)}
+                />
+              </Field>
+            ))}
+          </details>
+          <Field label="Notes">
+            <textarea
+              style={{ ...inputStyle, minHeight: 88 }}
+              value={form.notes || ""}
+              onChange={set("notes")}
+              placeholder="Accessories, condition, reminders…"
+            />
+          </Field>
+          <div style={{ marginTop: 4, marginBottom: 6 }}>
+            <label style={labelStyle}>Specs</label>
+            {form.specs.map((s, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+                <input
+                  aria-label={`Specification ${i + 1} name`}
+                  value={s.key}
+                  onChange={(e) => updateSpec(i, "key", e.target.value)}
+                  placeholder="Forward voltage"
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <input
+                  aria-label={`Specification ${i + 1} value`}
+                  value={s.value}
+                  onChange={(e) => updateSpec(i, "value", e.target.value)}
+                  placeholder="2.1V"
+                  style={{ ...inputStyle, flex: 1 }}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove specification ${i + 1}`}
+                  onClick={() => removeSpecRow(i)}
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${BORDER}`,
+                    borderRadius: 6,
+                    color: TEXT_DIM,
+                    width: 32,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addSpecRow}
+              style={{
+                background: "transparent",
+                border: `1px dashed ${BORDER}`,
+                color: TEXT_DIM,
+                borderRadius: 6,
+                padding: "6px 10px",
+                fontSize: 12,
+                width: "100%",
+              }}
+            >
+              + Add spec
+            </button>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+              marginTop: 18,
+            }}
+          >
+            <button
+              disabled={saving}
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: `1px solid ${BORDER}`,
+                color: TEXT,
+                borderRadius: 6,
+                padding: "9px 16px",
+                fontSize: 13,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={{
+                background: ACCENT,
+                border: "none",
+                color: "#1A1200",
+                fontWeight: 600,
+                borderRadius: 6,
+                padding: "9px 16px",
+                fontSize: 13,
+              }}
+            >
+              {saving ? "Saving…" : isEditing ? "Save changes" : "Add item"}
+            </button>
+          </div>
         </fieldset>
       </form>
     </div>
   );
 }
 
-const inputStyle = { width: '100%', boxSizing: 'border-box', background: '#22262B', border: `1px solid ${BORDER}`, borderRadius: 6, padding: '8px 10px', color: TEXT, fontSize: 13, outline: 'none' };
-const labelStyle = { display: 'block', fontSize: 12, color: TEXT_DIM, marginBottom: 6 };
+const inputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  background: "#22262B",
+  border: `1px solid ${BORDER}`,
+  borderRadius: 6,
+  padding: "8px 10px",
+  color: TEXT,
+  fontSize: 13,
+  outline: "none",
+};
+const labelStyle = {
+  display: "block",
+  fontSize: 12,
+  color: TEXT_DIM,
+  marginBottom: 6,
+};
 
 function Field({ label, children, style }) {
   return (
     <div style={{ marginBottom: 12, ...style }}>
-      <label style={{ ...labelStyle, marginBottom: 0 }}>{label}
-        <span style={{ display: 'block', marginTop: 6 }}>{children}</span>
+      <label style={{ ...labelStyle, marginBottom: 0 }}>
+        {label}
+        <span style={{ display: "block", marginTop: 6 }}>{children}</span>
       </label>
     </div>
   );
