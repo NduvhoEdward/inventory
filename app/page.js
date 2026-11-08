@@ -142,7 +142,6 @@ export default function Inventory() {
   const savingRef = useRef(false);
   const [stockFilter, setStockFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
-  const [exporting, setExporting] = useState(false);
   const isEditing = form.id !== null;
 
   async function loadParts() {
@@ -179,27 +178,6 @@ export default function Inventory() {
     } finally {
       savingRef.current = false;
       setSaving(false);
-    }
-  }
-
-  async function downloadBackup(format) {
-    setExporting(true);
-    setSaveError('');
-    try {
-      const response = await fetch(`/api/backup?format=${format}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error('Backup failed');
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `bench-inventory-${new Date().toISOString().slice(0, 10)}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch {
-      setSaveError('Could not download your backup. Please try again.');
-    } finally {
-      setExporting(false);
     }
   }
 
@@ -400,8 +378,8 @@ export default function Inventory() {
             ))}
           </select>
           <div className="backup-tools">
-            <button className="secondary-button" disabled={!!loadError || saving || exporting} onClick={() => downloadBackup('json')}><Download size={15} /> Download backup</button>
-            <button className="secondary-button" disabled={!!loadError || saving || exporting} onClick={() => downloadBackup('csv')}><Download size={15} /> Export CSV</button>
+            <a className="secondary-button" href="/api/backup?format=json" download aria-disabled={!!loadError || saving} onClick={(event) => { if (loadError || saving) event.preventDefault(); }}><Download size={15} /> Download backup</a>
+            <a className="secondary-button" href="/api/backup?format=csv" download aria-disabled={!!loadError || saving} onClick={(event) => { if (loadError || saving) event.preventDefault(); }}><Download size={15} /> Export CSV</a>
             <span>Exports include all components, regardless of filters.</span>
           </div>
           {(saveError || loadError) && (
@@ -434,7 +412,7 @@ export default function Inventory() {
         </main>
       </div>
 
-      <div className="save-status" role="status">{saving ? 'Saving changes…' : exporting ? 'Preparing download…' : ''}</div>
+      <div className="save-status" role="status">{saving ? 'Saving changes…' : ''}</div>
       {showForm && (
         <FormModal
           saving={saving}
