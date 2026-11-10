@@ -169,7 +169,7 @@ function emptyForm() {
     partNumber: "",
     datasheetUrl: "",
     cost: "",
-    lowStock: "5",
+    lowStock: "0",
     specs: [{ key: "", value: "" }],
   };
 }
@@ -331,10 +331,7 @@ export default function Inventory() {
         collections.find((c) => c.id === "electronics")?.id ||
         collections[0]?.id ||
         "",
-      lowStock:
-        current && descendantIds(collections, "garage").has(current.id)
-          ? "0"
-          : "5",
+      lowStock: "0",
       notes: "",
       brand: "",
       model: "",
