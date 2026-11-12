@@ -1,10 +1,17 @@
+import { isOwner, sameOrigin } from "../../../lib/auth";
+import { publicInventory } from "../../../lib/privacy.mjs";
 import { getInventory, saveInventory } from "../../../lib/storage";
 import { validateInventory } from "../../../lib/workspace.mjs";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
 export async function GET() {
   try {
-    return Response.json(await getInventory(), { headers });
+    const owner = await isOwner();
+    const data = await getInventory();
+    return Response.json(
+      { ...(owner ? data : publicInventory(data)), owner },
+      { headers },
+    );
   } catch {
     return Response.json(
       { error: "Could not load your inventory. Please try again." },
@@ -13,6 +20,18 @@ export async function GET() {
   }
 }
 export async function POST(request) {
+  try {
+    if (!sameOrigin(request) || !(await isOwner()))
+      return Response.json(
+        { error: "Unlock to edit your inventory." },
+        { status: 403, headers },
+      );
+  } catch {
+    return Response.json(
+      { error: "Authentication unavailable." },
+      { status: 503, headers },
+    );
+  }
   let data;
   try {
     data = await request.json();

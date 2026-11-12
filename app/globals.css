@@ -687,3 +687,39 @@ summary:focus-visible {
 .filter-controls select {
   max-width: 100%;
 }
+
+.unlock-dialog {
+  background: #1c2024;
+  color: #e9eae6;
+  border: 1px solid #363c42;
+  border-radius: 12px;
+  padding: 24px;
+  width: 440px;
+  max-width: calc(100% - 32px);
+}
+.unlock-dialog::backdrop {
+  background: #000a;
+}
+.unlock-dialog input[type="checkbox"] {
+  min-height: 20px;
+  vertical-align: middle;
+}
+.is-locked .heading-actions,
+.is-locked .collection-settings,
+.is-locked .workspace-nav > button:last-child,
+.is-locked .header-actions > .primary-button,
+.is-locked .backup-tools > button,
+.is-locked .part-card button {
+  display: none;
+}
+@media (max-width: 720px) {
+  .header-actions {
+    flex-wrap: wrap;
+  }
+  .search-box {
+    min-width: 160px;
+  }
+  .unlock-dialog input {
+    font-size: 16px;
+  }
+}

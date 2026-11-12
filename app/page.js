@@ -175,6 +175,57 @@ function emptyForm() {
 }
 
 export default function Inventory() {
+  const [owner, setOwner] = useState(false),
+    [unlockOpen, setUnlockOpen] = useState(false),
+    [authBusy, setAuthBusy] = useState(false),
+    [authError, setAuthError] = useState("");
+  async function authenticate(e) {
+    e.preventDefault();
+    setAuthBusy(true);
+    setAuthError("");
+    const fields = new FormData(e.currentTarget);
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "login",
+          password: fields.get("password"),
+          remember: fields.get("remember") === "on",
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw Error(result.error);
+      setUnlockOpen(false);
+      await loadParts();
+    } catch (e) {
+      setAuthError(e.message);
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+  async function lock() {
+    setAuthBusy(true);
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+      if (!response.ok) throw Error();
+      setOwner(false);
+      setData({ parts: [], collections: [], revision: 0 });
+      setShowForm(false);
+      setCollectionForm(null);
+      setActive("home");
+      setQuery("");
+      window.location.reload();
+    } catch {
+      setSaveError("Could not lock. Please try again.");
+      setAuthBusy(false);
+    }
+  }
+
   const [data, setData] = useState({ parts: [], collections: [], revision: 0 });
   const { parts, collections } = data;
   const [loaded, setLoaded] = useState(false),
@@ -203,6 +254,7 @@ export default function Inventory() {
       if (!r.ok) throw Error();
       const d = await r.json();
       validateInventory(d);
+      setOwner(d.owner === true);
       setData(d);
       return d;
     } catch {
@@ -221,7 +273,7 @@ export default function Inventory() {
     });
   }, []);
   async function persist(next) {
-    if (savingRef.current || loadError) return false;
+    if (!owner || savingRef.current || loadError) return false;
     savingRef.current = true;
     setSaving(true);
     setSaveError("");
@@ -234,7 +286,7 @@ export default function Inventory() {
       });
       const result = await r.json();
       if (!r.ok) throw Error(result.error);
-      setData({ ...next, revision: result.revision });
+      setData({ ...next, revision: result.revision, owner: true });
       return true;
     } catch (e) {
       setSaveError(e.message || "Could not save. Please try again.");
@@ -319,6 +371,7 @@ export default function Inventory() {
       );
   }, [scoped, query, stockFilter, sortBy, collections, today, categoryFilter]);
   function openAdd() {
+    if (!owner) return;
     setSaveError("");
     setForm({
       ...emptyForm(),
@@ -344,6 +397,10 @@ export default function Inventory() {
     setShowForm(true);
   }
   function openEdit(p) {
+    if (!owner) {
+      navigate(p.collectionId);
+      return;
+    }
     setSaveError("");
     setForm({
       ...emptyForm(),
@@ -512,7 +569,7 @@ export default function Inventory() {
           {collectionPath(collections, p.collectionId)}
         </button>
         <PartCard
-          saving={saving}
+          saving={saving || !owner}
           part={p}
           onEdit={() => openEdit(p)}
           onDelete={() => setConfirmDelete(p.id)}
@@ -527,7 +584,7 @@ export default function Inventory() {
   if (!loaded)
     return <div className="loading-screen">Loading your inventory…</div>;
   return (
-    <div className="workspace">
+    <div className={owner ? "workspace" : "workspace is-locked"}>
       <header className="app-header workspace-header">
         <button className="brand-button" onClick={() => navigate("home")}>
           <Package size={24} />
@@ -536,6 +593,13 @@ export default function Inventory() {
           </span>
         </button>
         <div className="header-actions">
+          <button
+            className="secondary-button"
+            disabled={authBusy}
+            onClick={() => (owner ? lock() : setUnlockOpen(true))}
+          >
+            {owner ? "Lock" : "Unlock"}
+          </button>
           <div className="search-box">
             <Search size={18} />
             <input
@@ -550,7 +614,7 @@ export default function Inventory() {
           </div>
           <button
             className="primary-button"
-            disabled={!!loadError || saving || !collections.length}
+            disabled={!!loadError || saving || !collections.length || !owner}
             onClick={openAdd}
           >
             <Plus size={17} /> Add item
@@ -584,7 +648,7 @@ export default function Inventory() {
           ))}
           <button
             className="text-button"
-            disabled={saving || !!loadError}
+            disabled={saving || !!loadError || !owner}
             onClick={() => {
               setCollectionError("");
               setSaveError("");
@@ -647,14 +711,14 @@ export default function Inventory() {
                 <>
                   <button
                     className="secondary-button"
-                    disabled={saving}
+                    disabled={saving || !owner}
                     onClick={() => editCollection(current)}
                   >
                     <Settings size={16} /> Edit collection
                   </button>
                   <button
                     className="secondary-button"
-                    disabled={saving}
+                    disabled={saving || !owner}
                     onClick={() => editCollection()}
                   >
                     <Plus size={16} /> Subcollection
@@ -664,7 +728,7 @@ export default function Inventory() {
               {!current && (
                 <button
                   className="secondary-button"
-                  disabled={saving || !!loadError}
+                  disabled={saving || !!loadError || !owner}
                   onClick={() => {
                     setCollectionError("");
                     setSaveError("");
@@ -847,7 +911,7 @@ export default function Inventory() {
                 <div className="collection-settings">
                   <button
                     className="text-button"
-                    disabled={saving}
+                    disabled={saving || !owner}
                     onClick={() => setDeleteCollection(!deleteCollection)}
                   >
                     Delete collection
@@ -863,7 +927,7 @@ export default function Inventory() {
                         <p>Delete “{current.name}”? This cannot be undone.</p>
                         <button
                           className="secondary-button"
-                          disabled={saving}
+                          disabled={saving || !owner}
                           onClick={removeCollection}
                         >
                           Confirm delete collection
@@ -884,19 +948,23 @@ export default function Inventory() {
             <div className="backup-tools">
               <button
                 className="secondary-button"
-                disabled={!!loadError || saving || exporting}
+                disabled={!!loadError || saving || exporting || !owner}
                 onClick={() => downloadBackup("json")}
               >
                 <Download size={15} /> Download backup
               </button>
               <button
                 className="secondary-button"
-                disabled={!!loadError || saving || exporting}
+                disabled={!!loadError || saving || exporting || !owner}
                 onClick={() => downloadBackup("csv")}
               >
                 Export CSV
               </button>
-              <span>All collections and items are included.</span>
+              <span>
+                {owner
+                  ? "All collections and items are included."
+                  : "Public view. Unlock to edit, view private items and download backups."}
+              </span>
             </div>
             <label className="start-setting">
               Start this device on
@@ -916,10 +984,23 @@ export default function Inventory() {
           </footer>
         </main>
       </div>
+      {unlockOpen && (
+        <UnlockDialog
+          busy={authBusy}
+          error={authError}
+          onSubmit={authenticate}
+          onClose={() => {
+            if (!authBusy) {
+              setUnlockOpen(false);
+              setAuthError("");
+            }
+          }}
+        />
+      )}
       <div className="save-status" role="status">
         {saving ? "Saving changes…" : exporting ? "Preparing download…" : ""}
       </div>
-      {showForm && (
+      {owner && showForm && (
         <FormModal
           saving={saving}
           saveError={saveError}
@@ -936,7 +1017,7 @@ export default function Inventory() {
           removeSpecRow={removeSpecRow}
         />
       )}
-      {collectionForm && (
+      {owner && collectionForm && (
         <CollectionModal
           form={collectionForm}
           setForm={setCollectionForm}
@@ -1037,6 +1118,12 @@ function CollectionModal({
           </p>
         )}
         <fieldset disabled={saving}>
+          <PrivacyField
+            value={
+              form.visibility || (form.id === "garage" ? "private" : "public")
+            }
+            onChange={(value) => setForm({ ...form, visibility: value })}
+          />
           <Field label="Collection name">
             <input
               required
@@ -1524,6 +1611,10 @@ function FormModal({
           disabled={saving}
           style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}
         >
+          <PrivacyField
+            value={form.visibility || "public"}
+            onChange={(value) => setForm((f) => ({ ...f, visibility: value }))}
+          />
           <Field label="Name">
             <input
               ref={nameRef}
@@ -1811,5 +1902,82 @@ function Field({ label, children, style }) {
         <span style={{ display: "block", marginTop: 6 }}>{children}</span>
       </label>
     </div>
+  );
+}
+
+function PrivacyField({ value, onChange }) {
+  return (
+    <Field label="Visibility">
+      <select
+        style={inputStyle}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="public">
+          Public unless inside a private collection
+        </option>
+        <option value="private">Private — unlock required</option>
+      </select>
+      <span className="muted">
+        A private parent collection always keeps its contents private.
+      </span>
+    </Field>
+  );
+}
+function UnlockDialog({ busy, error, onClose, onSubmit }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const previous = document.activeElement;
+    ref.current.showModal();
+    return () => previous?.focus();
+  }, []);
+  return (
+    <dialog
+      ref={ref}
+      className="unlock-dialog"
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+    >
+      <form onSubmit={onSubmit}>
+        <h2>Unlock your inventory</h2>
+        <p className="muted">View private items and enable editing.</p>
+        {error && (
+          <p role="alert" className="error-banner">
+            {error}
+          </p>
+        )}
+        <fieldset disabled={busy} style={{ border: 0, padding: 0 }}>
+          <Field label="Passphrase">
+            <input
+              autoFocus
+              required
+              type="password"
+              name="password"
+              autoComplete="current-password"
+              maxLength={256}
+              style={inputStyle}
+            />
+          </Field>
+          <label>
+            <input type="checkbox" name="remember" /> Stay signed in for 30 days
+            on this device
+          </label>
+          <div className="dialog-actions">
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+            <button className="primary-button" type="submit">
+              {busy ? "Unlocking…" : "Unlock"}
+            </button>
+          </div>
+        </fieldset>
+      </form>
+    </dialog>
   );
 }

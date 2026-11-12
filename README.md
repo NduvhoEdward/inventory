@@ -25,3 +25,14 @@ Download backup exports all collections and all item fields as version 2 JSON, i
 ## Local development
 
 Copy .env.example to .env.local and set your Neon development database URL. Then run npm install and npm run dev. Run npm test and npm run build before publishing. Push main to trigger the existing Vercel deployment.
+
+
+## Access and privacy
+
+Public visitors receive read-only inventory data. Unlock enables editing and full backups. Any collection or item can be marked Private; descendants of a private collection remain private even if marked public. Garage defaults to private when no visibility is set. Public responses omit locations, serial numbers, notes, specifications and purchase/maintenance details. No inventory records are deleted or rewritten when enabling access controls.
+
+Authentication uses scrypt password hashes stored in Neon, random opaque server sessions, HttpOnly Secure SameSite=Strict host-only cookies, same-origin mutation checks, and database-backed login throttling. Sessions expire after eight hours or 30 days when remembered; Lock revokes the current session. Each hostname requires its own login.
+
+The current inventory table is atomically renamed from bench_inventory to inventory_private on first access. This preserves records and isolates the current data from pre-authentication deployment code that still queries the old table. Do not roll back to a pre-authentication deployment: it cannot load the protected inventory. Existing copies or downloads obtained before privacy was enabled cannot be revoked.
+
+Initial password enrollment uses a one-time random 256-bit setup token held outside the repository; only its SHA-256 digest is deployed. The setup endpoint inserts a singleton password record atomically and cannot replace an existing password. Never commit the setup token or plaintext passphrase. To recover access, the database administrator must reset inventory_auth and revoke inventory_sessions, then deploy a new bootstrap-token digest and enroll again through HTTPS. There is no public password reset flow.
